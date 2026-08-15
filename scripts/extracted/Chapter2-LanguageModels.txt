@@ -1,0 +1,575 @@
+=== FILE: Chapter2-LanguageModels.pptx ===
+Total slides: 84
+
+--- Slide 1 ---
+NATURAL LANGUAGE PROCESSING (NLP)
+Chapter 2: LANGUAGE MODELS
+Trương Quốc Định
+Faculty of Information Systems – College of Information & Communication Technology
+
+--- Slide 2 ---
+Motivation
+Many NLP tasks return output in natural language
+  Machine translation
+  Speech recognition
+  Natural language generation
+  Spell-checking
+Language models define probability distributions over (natural language) strings or sentences.
+We can use them to score/rank possible sentences
+  If PLM(A) > PLM(B), choose sentence A over B
+LANGUAGE MODELS
+
+--- Slide 3 ---
+The language modeling problem
+LANGUAGE MODELS
+context
+
+--- Slide 4 ---
+The language modeling problem
+This language models form can generate text
+  At each timestep, sample a token from the language model’s new probability distribution over next tokens.
+LANGUAGE MODELS
+
+--- Slide 5 ---
+Language models play the role of ...
+a judge of grammaticality
+  e.g., should prefer “The boy runs.” to “The boy run.”
+a judge of semantic plausibility
+  e.g., should prefer “The woman spoke.” to “The sandwich spoke.”
+an enforcer of stylistic consistency
+  e.g., should prefer “Hello, how are you this evening? Fine, thanks, how are you?” to
+  “Hello, how are you this evening? Has your house ever been burgled?”
+a repository of knowledge (?)
+  e.g., “Barack Obama was the 44th President of the United States”
+LANGUAGE MODELS
+
+--- Slide 6 ---
+Why language modelling?
+Machine translation
+  p(strong winds) > p(large winds)
+Spelling correction
+  The office is about fifteen minuets from my house
+  p(about fifteen minutes from)  > p(about fifteen minuets from)
+Speech recognition
+  p(I saw a van) >> p(eyes awe of an)
+Summarization, question-answering, handwriting recognition, OCR, etc.
+LANGUAGE MODELS
+
+--- Slide 7 ---
+Language model evolution
+LANGUAGE MODELS
+
+--- Slide 8 ---
+Basic Probability Theory
+Pick a random shape, then put it back in the bag
+LANGUAGE MODELS
+
+--- Slide 9 ---
+Basic Probability Theory
+LANGUAGE MODELS
+
+--- Slide 10 ---
+Basic Probability Theory
+The chain rule
+  The joint probability P(X,Y) can also be expressed in terms of the conditional probability P(X | Y).
+  P(X, Y) = P(X | Y) * P(Y)
+  This leads to the so-called chain rule:
+LANGUAGE MODELS
+
+--- Slide 11 ---
+Basic Probability Theory
+Independence
+  Two random variables X and Y are independent if P(X, Y) = P(X) * P(Y).
+  If X and Y are independent, then P(X | Y) = P(X)
+LANGUAGE MODELS
+
+--- Slide 12 ---
+Probability models
+Building a probability model consists of two steps:
+  Defining the model
+  Estimating the model’s parameters (training/learning)
+Models (almost) always make independence assumptions.
+  That is, even though X and Y are not actually independent, our model may treat them as independent.
+  This reduces the number of model parameters that we need to estimate (e.g. from n2 to 2n)
+LANGUAGE MODELS
+
+--- Slide 13 ---
+Language modeling with n-grams
+A language model over a vocabulary V assigns probabilities to strings drawn from V*.
+An n-gram language model assumes each word depends only on the last n−1 words
+LANGUAGE MODELS
+
+--- Slide 14 ---
+Language modeling with n-grams
+LANGUAGE MODELS
+
+--- Slide 15 ---
+Estimating N-gram models
+Bracket each sentence by special start and end symbols
+  <s> Alice was beginning to get very tired… </s>
+Count the frequency of each n-gram
+  C (Alice) = 1, C (Alice was) = 1, …
+Normalize these frequencies to get the probability
+LANGUAGE MODELS
+
+--- Slide 16 ---
+Estimating N-gram models
+Parameter estimation (training)
+  Parameters: the actual probabilities P(wi = ‘the’ | wi-1 = ‘on’) = ???
+  We need (a large amount of) text as training data to estimate the parameters of a language model.
+  The most basic estimation technique: relative frequency estimation
+    P(wi = ‘the’ | wi-1 = ‘on’) = C(‘on the’) / C(‘on’)
+LANGUAGE MODELS
+
+--- Slide 17 ---
+How do we use language models?
+Independently of any application, we can use a language model as a random sentence generator.
+Systems for applications such as machine translation, speech recognition, spell-checking, generation, often produce multiple candidate sentences as output.
+  We prefer output sentences SOut that have a higher probability,
+    argmaxSOut P(SOut | Input) = argmaxSOut P(Input | SOut) * P(SOut)
+LANGUAGE MODELS
+
+--- Slide 18 ---
+Using n-gram models to generate language
+How do we sample from a distribution P(X |Y=y)?
+  Assume X has N possible outcomes (values): {x1, …, xN} and P(X=xi | Y=y) = pi
+  Divide the interval [0,1] into N smaller intervals according to the probabilities of the outcomes.
+  Generate a random number r between 0 and 1.
+  Return the xi whose interval the number is in.
+LANGUAGE MODELS
+
+--- Slide 19 ---
+Using n-gram models to generate language
+Generating the Wall Street Journal
+LANGUAGE MODELS
+
+--- Slide 20 ---
+How do we evaluate models?
+Define an evaluation metric (scoring function).
+  We will want to measure how similar the predictions of the model are to real text.
+Train the model on a ‘seen’ training set
+  Perhaps: tune some parameters based on held-out data (disjoint from the training data, meant to emulate unseen data)
+Test the model on an unseen test set (usually from the same source (e.g. WSJ) as the training data)
+  Test data must be disjoint from training and held-out data
+  Compare models by their scores.
+LANGUAGE MODELS
+
+--- Slide 21 ---
+How do we evaluate models?
+Intrinsic vs Extrinsic Evaluation
+  Intrinsic evaluation captures how well the model captures what it is supposed to capture (e.g. probabilities)
+  Extrinsic (task-based) evaluation captures how useful the model is in a particular task.
+LANGUAGE MODELS
+
+--- Slide 22 ---
+Intrinsic Evaluation of Language Models: Perplexity
+Perplexity is the inverse of the probability of the test set (as assigned by the language model), normalized by the number of word tokens in the test set.
+Language model LM1 is better than LM2 if LM1 assigns lower perplexity (= higher probability) to the test corpus w1…wN
+  the perplexity of LM1 and LM2 can only be directly compared if both models use the same vocabulary.
+LANGUAGE MODELS
+
+--- Slide 23 ---
+Intrinsic Evaluation of Language Models: Perplexity
+LANGUAGE MODELS
+
+--- Slide 24 ---
+Extrinsic Evaluation of LMs: Word Error Rate
+Originally developed for speech recognition.
+How much does the predicted sequence of words differ from the actual sequence of words in the correct transcript?
+But unseen test data will contain unseen words.
+LANGUAGE MODELS
+
+--- Slide 25 ---
+Word embedding
+An approach with which we represent documents and words.
+It is defined as a numeric vector input that allows words with similar meanings to have the same representation.
+Word Embeddings in NLP is a technique where individual words are represented as real-valued vectors in a lower-dimensional space and captures inter-word semantics.
+LANGUAGE MODELS
+
+--- Slide 26 ---
+Word embedding
+Term frequency - Inverse document frequency (TF-IDF)
+  TF score measures the frequency of words in a particular document.
+  IDF score measures the rarity of the words in the text.
+  TF-IDF algorithm is used in some tasks like information retrieval, stop words removal, keyword extraction, and basic text analysis.
+LANGUAGE MODELS
+
+--- Slide 27 ---
+Word embedding
+Term frequency - Inverse document frequency (TF-IDF)
+  ‘kind true sadly’, ‘swear jam set world ablaze’, ‘swear true car accident’, ‘car sadly car caught up fire’
+LANGUAGE MODELS
+
+--- Slide 28 ---
+Word embedding
+Bag of words (BOW)
+  BOW is one of the popular word embedding techniques of text where each value in the vector would represent the count of words in a document/sentence.
+  To create BOW:
+    In the first step, tokenize the text into sentences.
+    Next, the sentences tokenized in the first step have further tokenized words.
+    Eliminate any stop words or punctuation.
+    Then, convert all the words to lowercase.
+    Finally, move to create a frequency distribution chart of the words.
+LANGUAGE MODELS
+
+--- Slide 29 ---
+Word embedding
+Basic neuron network
+LANGUAGE MODELS
+
+--- Slide 30 ---
+Word embedding
+Basic neuron network
+  The softmax function is a function that converts a vector of K real values into a vector of K real values that add up to 1.
+  The input values could be positive, negative, zero, or even greater than one, but the softmax transforms them into values between 0 and 1 which makes it possible for them to be interpreted as probabilities.
+LANGUAGE MODELS
+
+--- Slide 31 ---
+Word embedding
+Basic neuron network
+LANGUAGE MODELS
+
+--- Slide 32 ---
+Representing a word
+One Hot Encoding
+LANGUAGE MODELS
+
+--- Slide 33 ---
+word2vec: Representing the Meaning of Words
+Key idea: Predict surrounding words of every word.
+Benefits: Faster and easier to incorporate new document, words, etc.
+Continuous Bag of Words (CBOW): use context words in a window to predict middle word.
+Skip-gram: use the middle word to predict surrounding ones in a window.
+LANGUAGE MODELS
+
+--- Slide 34 ---
+word2vec: Representing the Meaning of Words
+LANGUAGE MODELS
+
+--- Slide 35 ---
+word2vec: Representing the Meaning of Words
+CBOW
+  Example: “The cat sat on floor” (window size 2)
+LANGUAGE MODELS
+
+--- Slide 36 ---
+word2vec: Representing the Meaning of Words
+CBOW
+LANGUAGE MODELS
+
+--- Slide 37 ---
+word2vec: Representing the Meaning of Words
+CBOW
+LANGUAGE MODELS
+
+--- Slide 38 ---
+word2vec: Representing the Meaning of Words
+CBOW
+LANGUAGE MODELS
+
+--- Slide 39 ---
+word2vec: Representing the Meaning of Words
+CBOW
+LANGUAGE MODELS
+
+--- Slide 40 ---
+word2vec: Representing the Meaning of Words
+CBOW
+LANGUAGE MODELS
+
+--- Slide 41 ---
+word2vec: Representing the Meaning of Words
+CBOW
+LANGUAGE MODELS
+
+--- Slide 42 ---
+word2vec: Representing the Meaning of Words
+Skip-Gram Model
+LANGUAGE MODELS
+
+--- Slide 43 ---
+word2vec: Representing the Meaning of Words
+Comparison
+  CBOW is not great for rare words and typically needs less data to train.
+  Skip-gram better for rate words and needs more data to train the model.
+LANGUAGE MODELS
+
+--- Slide 44 ---
+doc2vec
+LANGUAGE MODELS
+
+--- Slide 45 ---
+word2vec: Representing the Meaning of Words
+Word Analogies
+  A word analogy is a statement of the form “a is to b as x is to y”, which asserts that a and x can be transformed in the same way to get b and y, and vice-versa.
+  A word analogy f  is an invertible transformation that holds over a set of ordered pairs S iff
+LANGUAGE MODELS
+
+--- Slide 46 ---
+GloVe: Global Vectors for Word Representation
+LANGUAGE MODELS
+
+--- Slide 47 ---
+GloVe: Global Vectors for Word Representation
+LANGUAGE MODELS
+
+--- Slide 48 ---
+GloVe: Global Vectors for Word Representation
+Model
+  For a word wk that is related to “ice” but unrelated to “steam”, we expect a larger ratio of co-occurence probabilities (8.9)
+  For a word  wk that is related to “steam” but unrelated to “ice”, we expect a smaller ratio of co-occurence probabilities ( 0.085).
+  For a word wk that is related to both “ice” and “steam”, we expect a ratio of co-occurence probabilities that is close to 1 (1.36).
+  For a word wk that is unrelated to both “ice” and “steam”, we expect a ratio of co-occurence probabilities that is close to 1 (0.96).
+LANGUAGE MODELS
+
+--- Slide 49 ---
+GloVe: Global Vectors for Word Representation
+LANGUAGE MODELS
+
+--- Slide 50 ---
+GloVe: Global Vectors for Word Representation
+Model
+  We would like F to encode the information present the ratio Pik / Pjk in the word vector space. Since vector spaces are inherently linear structures, the most natural way to do this is with vector differences.
+  The arguments of F are vectors while the right-hand side is a scalar, so we can first take the dot product of the arguments
+LANGUAGE MODELS
+
+--- Slide 51 ---
+GloVe: Global Vectors for Word Representation
+LANGUAGE MODELS
+
+--- Slide 52 ---
+GloVe: Global Vectors for Word Representation
+Model
+  log(Xi) is independent of k so it can be absorbed into a bias bi for wi.
+  Training the GloVe model is to find the minimum value of
+    f(0) = 0
+    f(x) should be non-decreasing so that rare co-occurrences are not overweighted.
+    f(x) should be relatively small for large values of x, so that frequent co-occurrences are not overweighted.
+LANGUAGE MODELS
+
+--- Slide 53 ---
+GloVe: Global Vectors for Word Representation
+Example
+  Cat’s vector in 50 dimensions
+LANGUAGE MODELS
+
+--- Slide 54 ---
+Practical issues
+Too many copies of the model
+Need for large-scale labelled data for fine-tuning
+How we can train a model that can perform NLP tasks in a zero-shot manner?
+LANGUAGE MODELS
+
+--- Slide 55 ---
+Recurrent Neural Networks (RNNs) - ReCap
+With RNNs the concept of recurrence is introduced.
+  An input h_t, called hidden state, is added. This hidden state embodies ŷ_t and is given as an argument to the next prediction in addition to the input x_t.
+LANGUAGE MODELS
+
+--- Slide 56 ---
+Recurrent Neural Networks (RNNs) - ReCap
+One to many, the RNN receives a single input and returns multiple outputs (e.g. image legend).
+Many to one, there are several inputs and there is a single output (e.g. sentiment analysis of texts).
+Many to many, the model can take several inputs and get several outputs (e.g. machine translation).
+LANGUAGE MODELS
+
+--- Slide 57 ---
+A Simple RNN Language Model
+RNN Advantages
+  Can process any length input.
+  Computation for step t can (in theory) use information from many steps back.
+  Model size doesn’t increase for longer input context.
+  Same weights applied on every timestep, so there is symmetry in how inputs are processed.
+LANGUAGE MODELS
+
+--- Slide 58 ---
+A Simple RNN Language Model
+RNN Disadvantages
+  Recurrent computation is slow.
+  In practice, difficult to access information from many steps back.
+LANGUAGE MODELS
+
+--- Slide 59 ---
+Long Short Term Memory (LSTM)
+LSTM is a type of RNN that is specifically designed to handle long-term dependencies in sequential data, such as time series, speech, and text.
+LSTMs introduce a memory cell, which can hold information for an extended period of time. The memory cell is controlled by three gates:
+  the input gate, the forget gate, and the output gate.
+  These gates decide what information to add to, remove from, and output from the memory cell.
+LANGUAGE MODELS
+
+--- Slide 60 ---
+Long Short Term Memory (LSTM)
+Forget Gate
+  The information that is no longer useful in the cell state is removed with the forget gate.
+    The resultant is passed through an activation function which gives a binary output.
+      If the output is 0, the piece of information is forgotten,
+      and for output 1, the information is retained for future use.
+LANGUAGE MODELS
+
+--- Slide 61 ---
+Long Short Term Memory (LSTM)
+Input gate
+  The addition of useful information to the cell state is done by the input gate.
+  Then, a vector is created using tanh function that gives an output from -1 to +1, which contains all the possible values from ht-1 and xt.
+LANGUAGE MODELS
+
+--- Slide 62 ---
+Long Short Term Memory (LSTM)
+Output gate
+  The task of extracting useful information from the current cell state to be presented as output is done by the output gate.
+  The information is regulated using the sigmoid function and filter by the values to be remembered using inputs ht-1 and xt.
+LANGUAGE MODELS
+
+--- Slide 63 ---
+Sequence-to-Sequence
+seq2seq Model
+  First introduced for machine translation, by Google.
+  A type of model that is used for tasks such as machine translation, text summarization, and image captioning. The model consists of two main components:
+    Encoder
+    Decoder
+  Trained using a dataset of input-output pairs, where the input is a sequence of tokens and the output is also a sequence of tokens.
+LANGUAGE MODELS
+
+--- Slide 64 ---
+Sequence-to-Sequence
+seq2seq Model
+LANGUAGE MODELS
+
+--- Slide 65 ---
+Sequence-to-Sequence
+Encoder-Decoder Stack
+  Encoder Stack
+    Converts the input words to corresponding hidden vectors (each vector represents the current word and the context of the word).
+    The encoder takes the input sequence, one token at a time, and uses an RNN or transformer to update its hidden state, which summarizes the information in the input sequence.
+    The final hidden state of the encoder is then passed as the context vector to the decoder.
+LANGUAGE MODELS
+
+--- Slide 66 ---
+Sequence-to-Sequence
+Encoder-Decoder Stack
+  Decoder Stack
+    Takes as input the hidden vector generated by the encoder, its own hidden states, and the current word to produce the next hidden vector and finally predict the next word.
+    At each time step, the decoder uses the current hidden state, the context vector, and the previous output token to generate a probability distribution over the possible next tokens.
+      The token with the highest probability is then chosen as the output.
+LANGUAGE MODELS
+
+--- Slide 67 ---
+Introduction
+Language models that have many parameters (over 1B) and can perform multiple tasks through prompting.
+  Parameters are factors that an AI system learns from its training data and subsequently utilizes to process input and formulate output.
+  Eg. GPT, Llama2, Gemini, PaLM, Mistral, Mixtral etc.
+LARGE LANGUAGE MODELS
+
+--- Slide 68 ---
+Introduction
+The transformer model allows fast parallel computations on many GPUs (large amounts of compute).
+  It allows training on large amounts of data
+  It allows adding many and many layers in the model (large model)
+A large language model is a language model with a large number of parameters, trained on large amounts of data, for long period of time.
+LARGE LANGUAGE MODELS
+
+--- Slide 69 ---
+Pre-training in NLP
+Word embeddings are the basis of deep learning for NLP.
+Word embeddings (word2vec, GloVe) are often pre-trained on text corpus from co-occurrence statistics.
+Problem: Word embeddings are applied in a context free manner.
+LARGE LANGUAGE MODELS
+
+--- Slide 70 ---
+Architecture
+Encoder-only (BERT)
+  Pre-training : Masked Language Modeling (MLM)
+  Great for classification tasks, but hard to do generation
+Decoder-only (GPT)
+  Pre-training: Auto-regressive Language Modeling
+  Stable training, faster convergence
+  Better generalization after pre-training
+Encoder-decoder (T0/T5)
+  Pre-training : Masked Span Prediction
+  Good for tasks like MT, summarization
+LARGE LANGUAGE MODELS
+
+--- Slide 71 ---
+BERT model architecture
+LARGE LANGUAGE MODELS
+
+--- Slide 72 ---
+BERT model architecture
+Input Embedding
+  Input text is first converted into input embeddings, which are vectorized representations of the words that encapsulate semantic meaning.
+  GloVe, Fasttext, Word2Vec … can be used.
+LARGE LANGUAGE MODELS
+
+--- Slide 73 ---
+BERT model architecture
+LARGE LANGUAGE MODELS
+
+--- Slide 74 ---
+BERT model architecture
+Positional Encoding
+LARGE LANGUAGE MODELS
+
+--- Slide 75 ---
+BERT model architecture
+Self-Attention at a High Level
+  Say the following sentence is an input sentence: “The animal didn't cross the street because it was too tired”
+    What does “it” in this sentence refer to?
+    Self-attention allows model to associate “it” with “animal”
+LARGE LANGUAGE MODELS
+
+--- Slide 76 ---
+BERT model architecture
+Self-Attention at a High Level
+LARGE LANGUAGE MODELS
+
+--- Slide 77 ---
+Masked LM
+Solution: Mask out k% of the input words, and then predict the masked words.
+  k = 15%
+Too little masking: Too expensive to train; Too much masking: Not enough context.
+LARGE LANGUAGE MODELS
+
+--- Slide 78 ---
+Masked LM
+Problem: Mask token never seen at fine-tuning.
+Solution: don’t replace with [MASK] 100% of the time.
+  80% of the time, replace with [MASK]
+    went to the store → went to the [MASK]
+  10% of the time, replace random word
+    went to the store → went to the running
+  10% of the time, keep same
+    went to the store → went to the store
+LARGE LANGUAGE MODELS
+
+--- Slide 79 ---
+Next Sentence Prediction
+To learn relationships between sentences, predict whether Sentence B is actual sentence that proceeds Sentence A, or a random sentence.
+LARGE LANGUAGE MODELS
+
+--- Slide 80 ---
+Full Decoder-Only Transformer Model
+GPT (Generative Pre-trained Transformer) is the first decoder-only Transformer model.
+LARGE LANGUAGE MODELS
+
+--- Slide 81 ---
+Full Decoder-Only Transformer Model
+Layer Normalization
+  It calculates the mean and standard deviation of all feature dimensions for each sample independently.
+  This assists in stabilizing the learning process and reduces the required number of training steps.
+LARGE LANGUAGE MODELS
+
+--- Slide 82 ---
+Full Decoder-Only Transformer Model
+Masked Self-Attention
+  Used to ensure that the model doesnʼt attend to some of the tokens in the input sequence during training or generation.
+    For example, when working with sequence-to-sequence tasks like Machine Translation, we wouldnʼt want the model to attend to words that come after the current word being translated.
+  In terms of implementation, tokens are masked by setting their weights to -inf before applying the SoftMax normalization.
+LARGE LANGUAGE MODELS
+
+--- Slide 83 ---
+From raw text to aligned assistant
+LARGE LANGUAGE MODELS
+
+--- Slide 84 ---
+Prompting as inference-time programming
+LARGE LANGUAGE MODELS

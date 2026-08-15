@@ -1,0 +1,501 @@
+=== FILE: Chapter1-Introduction_to_NLP.pptx ===
+Total slides: 63
+
+--- Slide 1 ---
+NATURAL LANGUAGE PROCESSING (NLP)
+Chapter 1: INTRODUCTION TO NLP
+Trương Quốc Định
+Faculty of Information Systems – College of Information & Communication Technology
+
+--- Slide 2 ---
+Motivation
+Thank to an increased interest in human-to-machine communications, plus an availability of big data.
+  It is possible for computers to read text, hear speech, interpret it, measure sentiment and determine which parts are important?
+Considering the staggering amount of unstructured data that’s generated every day, from medical records to social media.
+  Machines must analyse more language-based data than humans.
+INTRODUCTION TO NLP
+
+--- Slide 3 ---
+Motivation
+Go beyond the keyword matching
+  Identify the structure and meaning of words, sentences, texts and conversations.
+INTRODUCTION TO NLP
+
+--- Slide 4 ---
+Definition
+Wiki: NLP is a field of computer science, artificial intelligence, and computational linguistics concerned with the interactions between computers and human (natural) languages.
+Computational methods for understanding or generating natural language.
+INTRODUCTION TO NLP
+
+--- Slide 5 ---
+Approaches to NLP
+Classical divide and conquer
+  break up into smaller tasks,
+  develop methods to solve those tasks,
+  combine tasks into a “pipeline” to solve overall task,
+  for each task, there can be many different possible approaches,
+  some or all of the sub-tasks may be based on some form of machine learning.
+INTRODUCTION TO NLP
+
+--- Slide 6 ---
+Approaches to NLP
+End-to-end
+  Single (Deep-Learning) model that does it all in one go
+  But, some NLP tasks (Tokenization) and ML tasks (data-loaders, batching..) are still needed.
+INTRODUCTION TO NLP
+
+--- Slide 7 ---
+Approaches to NLP
+INTRODUCTION TO NLP
+
+--- Slide 8 ---
+NLP tasks
+Sentence splitting, Tokenization
+Stemming, Lemmatization, POS tagging
+Parsing
+Named Entity Recognition
+INTRODUCTION TO NLP
+
+--- Slide 9 ---
+NLP tasks
+Sentence splitting
+  The process of separating free-flowing text into sentences.
+  It is one of the first steps in any natural language processing (NLP) application.
+  A period (.) may indicate the end of a sentence
+    or may denote an abbreviation, a decimal point, an ellipsis, or an email address, among other possibilities.
+  Question marks and exclamation marks can be similarly ambiguous due to use in emoticons, computer code, and slang.
+INTRODUCTION TO NLP
+
+--- Slide 10 ---
+NLP tasks
+Tokenization
+  What is a word?
+    “It’s”, “don’t”, “data-mining”, “trường”, “trường học”
+  Divide into units to process and call it a “Token”.
+    White space does not work for each language (e.g. Chinese, Turkish, Vietnamese) → sub-word units
+    Can have multi-word tokens, e.g. “New York Times”, “kick the bucket”, “Công nghệ thông tin”
+  Result: text is represented as a sequence of Tokens.
+INTRODUCTION TO NLP
+
+--- Slide 11 ---
+NLP tasks
+Vietnamese word segmentation
+INTRODUCTION TO NLP
+[TABLE]
+Approach | Precision | Recall | F1
+vnTokenizer | 96.98 | 97.69 | 97.33
+JVnSegmenter-Maxent | 96.60 | 97.40 | 97.00
+JVnSegmenter-CRFs | 96.63 | 97.49 | 97.06
+DongDu | 96.35 | 97.46 | 96.90
+UETsegmenter | 97.51 | 98.23 | 97.87
+VnCoreNLP (RDRSegmenter) | 97.46 | 98.35 | 97.90
+[/TABLE]
+
+--- Slide 12 ---
+NLP tasks
+INTRODUCTION TO NLP
+VnCoreNLP
+
+--- Slide 13 ---
+NLP tasks
+VnCoreNLP: A Fast and Accurate Vietnamese Word Segmenter.
+  The method starts with a manually word segmented sentences (e.g. “thuế_thu_nhập cá_nhân”) and its BI-formed representation (e.g. “thuế/B thu/I nhập/I cá/B nhân/I”).
+  Then the syllables are extracted to construct the raw corpus (“thuế thu nhập cá nhân”).
+  The initial segmenter (the longest matching strategy) is applied on the input raw corpus.
+    “thuế thu nhập cá nhân”  “thuế/B thu/B nhập/I cá/B nhân/I.”
+  The BI-formed gold standard corpus and the BI-formed initialized corpus are compared to generate a 5-syllable context dictionary D where each key-value pair consists of a 5-syllable window tuple as key and a gold standard tag as value.
+  Based on the 5-syllable context dictionary D, the rule selector selects the most suitable rules to construct the SCRDR (Single Classification Ripple Down Rules) tree.
+INTRODUCTION TO NLP
+
+--- Slide 14 ---
+NLP tasks
+Stemming
+  The process of producing morphological variants of a root/base word.
+    “retrieval”, “retrieved”, “retrieves”  “retrieve”.
+Lemmatization
+  The process of grouping together different inflected forms of the same word.
+  Lemmatization links similar meaning words as one word, making tools such as chatbots and search engine queries more effective and accurate.
+INTRODUCTION TO NLP
+
+--- Slide 15 ---
+NLP tasks
+POS tagging
+  The process of assigning one of the parts of speech to the given word.
+    In simple words, we can say that POS tagging is a task of labelling each word in a sentence with its appropriate part of speech.
+    Parts of speech include nouns, verb, adverbs, adjectives, pronouns, conjunction and their sub-categories.
+  Most of the POS tagging falls under Rule Base POS tagging, Stochastic POS tagging, Hidden Markov Model (HMM) POS Tagging.
+INTRODUCTION TO NLP
+
+--- Slide 16 ---
+NLP tasks
+POS tagging
+  Rule-based POS Tagging
+    Words are assigned POS tags based on their characteristics and the context in which they appear.
+    Rule-based POS taggers can be relatively simple to implement and are often used as a starting point for more complex machine learning-based taggers.
+    For example:
+      If the word ends in “-tion,” assign the tag “noun.”
+      If the word ends in “-ment,” assign the tag “noun.”
+      If the word is all uppercase, assign the tag “proper noun.”
+      …
+INTRODUCTION TO NLP
+
+--- Slide 17 ---
+NLP tasks
+POS tagging
+  Stochastic POS Tagging
+    Word Frequency Approach
+      based on the probability that a word occurs with a particular tag.
+      it may yield inadmissible sequence of tags.
+    Tag Sequence Probabilities
+      It is also called n-gram approach.
+      The best tag for a given word is determined by the probability at which it occurs with the n previous tags.
+INTRODUCTION TO NLP
+
+--- Slide 18 ---
+NLP tasks
+POS tagging
+  Hidden Markov Model
+    Consists of a set of states, each corresponding to a possible POS tag, and a set of transitions between the states.
+    The model is trained on the training data to learn the probabilities of transitioning from one state to another and the probabilities of observing different words given a particular state.
+      tag transition probabilities: P(ti|ti−1)
+      word likelihood probabilities: P(wi|ti)
+INTRODUCTION TO NLP
+
+--- Slide 19 ---
+NLP tasks
+POS tagging
+  Hidden Markov Model
+INTRODUCTION TO NLP
+
+--- Slide 20 ---
+NLP tasks
+POS tagging
+  Hidden Markov Model
+INTRODUCTION TO NLP
+
+--- Slide 21 ---
+NLP tasks
+Parsing
+  It is also called Syntactic analysis or syntax analysis.
+  Comparing the rules of formal grammar, syntax analysis checks the text for meaningfulness.
+INTRODUCTION TO NLP
+
+--- Slide 22 ---
+NLP tasks
+Named Entity Recognition
+  Focuses on identifying and classifying entities within textual data.
+  These entities encompass a diverse range of information, including names of individuals, organizations, locations, dates, numerical values, and more.
+INTRODUCTION TO NLP
+
+--- Slide 23 ---
+NLP tasks
+Named Entity Recognition
+  Its functioning can be distilled into several key steps:
+    Text Preprocessing: This typically includes tasks like tokenization (breaking the text into words or phrases) and part-of-speech tagging.
+    Entity Identification: NER algorithms scan it to identify sequences of words that correspond to entities.
+    Entity Classification: NER categorizes the recognized entities into predefined classes or types. Common categories include Person, Organization, Location, Date, and more.
+    Contextual Analysis: NER considers the context in which these entities appear, ensuring accurate classification.
+INTRODUCTION TO NLP
+
+--- Slide 24 ---
+NLP tasks
+NER use case
+INTRODUCTION TO NLP
+
+--- Slide 25 ---
+NLP tasks
+NER use case
+  Recruitment
+    NER can help we scan many CVs and identify relevant candidates.
+INTRODUCTION TO NLP
+
+--- Slide 26 ---
+NLP tasks
+NER use case
+  New updates
+    NER can help quickly identify key information from different channels.
+    This can be highly helpful for businesses monitoring stock markets, technological updates, compliance changes, and much more.
+INTRODUCTION TO NLP
+
+--- Slide 27 ---
+NLP tasks
+NER use case
+  Insurance claims
+    NER can help review insurance claims and identify key information instantaneously.
+INTRODUCTION TO NLP
+
+--- Slide 28 ---
+NLP tasks
+NER use case
+  Customer analysis
+    NER can be used to analyze reviews, support tickets, survey results, and feedback.
+INTRODUCTION TO NLP
+
+--- Slide 29 ---
+NLP tasks
+NER use case
+  Medical
+    NER can help review patient information, test results, family history, statistics, and other data to identify important patterns.
+INTRODUCTION TO NLP
+
+--- Slide 30 ---
+NLP applications
+Two main areas
+  Massive management of textual information sources
+    For human use
+    For automatic collection of linguistic resources
+  Person/Machine interaction
+INTRODUCTION TO NLP
+
+--- Slide 31 ---
+NLP applications
+Machine translation
+  Process of translating a text from a source language to a target language preserving some properties.
+  The main property to preserve (but not the only one) is the meaning.
+INTRODUCTION TO NLP
+
+--- Slide 32 ---
+NLP applications
+Machine translation
+  Model for each word in the source language
+    Its translation
+    The number of necessary words in the target language
+    The position of the translation in the sentence
+    The number of words that need to be generated from scratch.
+INTRODUCTION TO NLP
+
+--- Slide 33 ---
+NLP applications
+Information Retrieval
+  Input
+    A collection of documents
+      The Web
+      A corporate document collection
+      ...
+    A user information need represented as a query
+  Output
+    The documents that satisfy the user needs.
+INTRODUCTION TO NLP
+
+--- Slide 34 ---
+NLP applications
+Information Retrieval
+INTRODUCTION TO NLP
+
+--- Slide 35 ---
+NLP applications
+Question Answering
+  Natural extension of IR, QA systems provide not a document containing the answer but the proper answer (usually a fact).
+INTRODUCTION TO NLP
+
+--- Slide 36 ---
+NLP applications
+Question Answering
+INTRODUCTION TO NLP
+
+--- Slide 37 ---
+NLP applications
+Information Extraction
+  Information extraction (IE) tools make it possible to pull information from text documents, databases, websites or multiple sources.
+  IE may extract info from unstructured, semi-structured or structured, machine-readable text.
+  Usually, IE is used in natural language processing (NLP) to extract structured from unstructured text.
+INTRODUCTION TO NLP
+
+--- Slide 38 ---
+NLP applications
+Information Extraction
+  Initial processing.
+  Proper names identification.
+  Parsing.
+  Extraction of events and relations.
+  Anaphora resolution.
+  Output result generation.
+INTRODUCTION TO NLP
+
+--- Slide 39 ---
+NLP applications
+Information Extraction
+  Initial processing
+    The first step is to break down a text into fragments such as zones, phrases, segments, and tokens.
+    In the initial processing stage, part-of-speech tagging, and phrasal unit identification (noun or verb phrases) are usually the next tasks.
+  Proper names identification
+    One of the most important stages is the identification of various classes of proper names, such as names of people or organizations, dates, monetary amounts, places, addresses, and so on.
+    Regular expressions, which are a collection of patterns, are used to recognize these names.
+INTRODUCTION TO NLP
+
+--- Slide 40 ---
+NLP applications
+Information Extraction
+  Parsing
+    The sentences are processed to find the noun groups that surround some of those entities and verb groups.
+  Extraction of events and relations
+    This stage establishes relations between the extracted ideas.
+    This is accomplished by developing and implementing extraction rules that describe various patterns.
+    The text is compared to certain patterns, and if a match is discovered, the text element is labelled and retrieved later.
+INTRODUCTION TO NLP
+
+--- Slide 41 ---
+NLP applications
+Information Extraction
+  Coreference or Anaphora resolution
+    The step where noun phrases are decided if they relate to the same entity or not is called coreference or anaphora resolution.
+  Output results generation
+    This stage entails converting the structures collected during the preceding processes into output templates that follow the format defined by the user.
+INTRODUCTION TO NLP
+
+--- Slide 42 ---
+NLP applications
+Text Classification
+  Text classification is a machine learning technique that assigns a set of predefined categories to open-ended text.
+  Text classifiers can be used to organize, structure, and categorize pretty much any kind of text – from documents, medical studies and files, and all over the web.
+INTRODUCTION TO NLP
+
+--- Slide 43 ---
+NLP applications
+Text Classification
+INTRODUCTION TO NLP
+
+--- Slide 44 ---
+NLP applications
+Text Clustering
+  The task of grouping a set of unlabelled texts in such a way that texts in the same cluster are more similar to each other than to those in other clusters.
+  Text clustering algorithms process text and determine if natural clusters (groups) exist in the data.
+INTRODUCTION TO NLP
+
+--- Slide 45 ---
+
+--- Slide 46 ---
+NLP applications
+Text Clustering
+INTRODUCTION TO NLP
+
+--- Slide 47 ---
+NLP applications
+Automatic Summarization
+  A summary is a reductive transformation of a source text into a summary text by extraction or generation.
+INTRODUCTION TO NLP
+
+--- Slide 48 ---
+NLP applications
+Automatic Summarization
+  Extractive summarization
+INTRODUCTION TO NLP
+
+--- Slide 49 ---
+NLP applications
+Automatic Summarization
+  Abstractive summarization
+INTRODUCTION TO NLP
+
+--- Slide 50 ---
+NLP applications
+Sentiment analysis (Opinion mining)
+  An approach to natural language processing that identifies the emotional tone behind a body of text.
+  A popular way for organizations to determine and categorize opinions about a product, service or idea.
+  Sentiment analysis can extract the polarity or the amount of positivity and negativity, subject and opinion holder within the text.
+INTRODUCTION TO NLP
+
+--- Slide 51 ---
+NLP applications
+Sentiment analysis (Opinion mining)
+  General steps
+    Collect data.
+    Clean the data. The data is processed and cleaned to remove noise and parts of speech that don't have meaning relevant to the sentiment of the text.
+    Extract features. A machine learning algorithm automatically extracts text features to identify negative or positive sentiment.
+    Pick an ML model. A sentiment analysis tool scores the text using a rule-based, automatic or hybrid ML model.
+    Sentiment classification. Once a model is picked and used to analyse a piece of text, it assigns a sentiment score to the text including positive, negative or neutral.
+INTRODUCTION TO NLP
+
+--- Slide 52 ---
+NLP applications
+Sentiment analysis (Opinion mining)
+INTRODUCTION TO NLP
+
+--- Slide 53 ---
+NLP applications
+Sentiment analysis (Opinion mining)
+  Fine-grained sentiment analysis breaks down sentiment indicators into more precise categories, such as very positive and very negative.
+  Emotion detection analysis identifies emotions rather than positivity and negativity. Examples include happiness, frustration, shock, anger and sadness.
+  Intent-based analysis recognizes motivations behind a text in addition to opinion. For example, an online comment expressing frustration about changing a battery may carry the intent of getting customer service to reach out to resolve the issue.
+  Aspect-based analysis examines the specific component being positively or negatively mentioned. For example, a customer might review a product saying the battery life was too short.
+INTRODUCTION TO NLP
+
+--- Slide 54 ---
+NLP applications
+Chatbot
+  They are simulations that can understand human language, process it, and interact back with humans while performing specific tasks.
+  A chatbot is a conversational agent that interacts with users using natural language.
+INTRODUCTION TO NLP
+
+--- Slide 55 ---
+NLP applications
+Chatbot
+  Types of Chatbots
+    Text-based chatbot: In a text-based chatbot, a bot answers the user’s questions via a text interface.
+    Voice-based chatbot: In a voice or speech-based chatbot, a bot answers the user’s questions via a human voice interface.
+  There are mainly two approaches used to design the chatbots
+    In a Rule-based approach, a bot answers questions based on some rules on which it is trained on. The rules defined can be very simple to very complex.
+    Self-learning bots are the ones that use some Machine Learning-based approaches and are definitely more efficient than rule-based bots.
+INTRODUCTION TO NLP
+
+--- Slide 56 ---
+NLP applications
+Chatbot
+INTRODUCTION TO NLP
+
+--- Slide 57 ---
+NLP challenges
+Synonyms (words, sentences with the same meaning)
+  Season of the year
+    Fall
+    Autumn
+  Book delivery time
+    When will my book arrive?
+    When will I receive my book?
+INTRODUCTION TO NLP
+
+--- Slide 58 ---
+NLP challenges
+Polysemy (a single word or phrase has multiple related meanings)
+  Fall
+    The third season of the year
+    Moving down towards the ground or towards a lower position
+  The door is open.
+    Expressing a fact
+    A request to close the door
+INTRODUCTION TO NLP
+
+--- Slide 59 ---
+NLP challenges
+Homonymy (words with different meanings but with the same pronunciation and/or spelling)
+  Con đường này thật rộng! Chúng ta nên pha thêm đường.
+  Chú ấy câu được nhiều cá quá! Vài câu nói ấy thì được cái gì!
+  Ông ấy cười khanh khách! Nhà ông ấy đang có khách.
+  Ông ấy đang sút giảm sức khỏe! Cầu thủ sút bóng.
+INTRODUCTION TO NLP
+
+--- Slide 60 ---
+NLP challenges
+Attachment ambiguity (the doubt is about the syntactic structure of the sentence)
+INTRODUCTION TO NLP
+
+--- Slide 61 ---
+NLP challenges
+Discourse analysis
+  Alice understands that you like your mother, but she …
+  Does she refer to Alice or your mother?
+INTRODUCTION TO NLP
+
+--- Slide 62 ---
+NLP challenges
+Language is compositional
+INTRODUCTION TO NLP
+
+--- Slide 63 ---
+NLP challenges
+Scale
+  Oxford Dictionary has 273,000 headwords; 171,476 of them being in current use, 47,156 being obsolete words and around 9,500 derivative words included as subentries.
+  The Penn Treebank, produced approximately 7 million words of part-of-speech tagged text, 3 million words of skeletally parsed text, over 2 million words of text parsed for predicate argument structure, and 1.6 million words of transcribed spoken text annotated.
+  Wikipedia - 2.9 billion word (English)
+  Web - several billions of words
+INTRODUCTION TO NLP

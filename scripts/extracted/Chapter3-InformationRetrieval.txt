@@ -1,0 +1,417 @@
+=== FILE: Chapter3-InformationRetrieval.pptx ===
+Total slides: 49
+
+--- Slide 1 ---
+NATURAL LANGUAGE PROCESSING (NLP)
+Chapter 3: INFORMATION RETRIEVAL
+Trương Quốc Định
+Faculty of Information Systems – College of Information & Communication Technology
+
+--- Slide 2 ---
+Definition
+Information Retrieval (IR) is finding material (usually documents) of an unstructured nature (usually text) that satisfies an information need from within large collections (usually stored on computers).
+INFORMATION RETRIEVAL
+
+--- Slide 3 ---
+Basic assumptions of Information Retrieval
+Collection: Fixed set of documents
+Goal: Retrieve documents with information that is relevant to the user’s information need and helps the user complete a task
+INFORMATION RETRIEVAL
+
+--- Slide 4 ---
+The classic search model
+INFORMATION RETRIEVAL
+
+--- Slide 5 ---
+Inverted index
+For each term t, we must store a list of all documents that contain t.
+  Identify each by a docID, a document serial number.
+Can we used fixed-size arrays for this?
+INFORMATION RETRIEVAL
+
+--- Slide 6 ---
+Inverted index
+We need variable-size postings lists
+  On disk, a continuous run of postings is normal and best.
+  In memory, can use linked lists or variable length arrays.
+    Some trade offs in size/ease of insertion
+INFORMATION RETRIEVAL
+Posting
+Brutus
+Calpurnia
+Caesar
+2
+31
+174
+54
+101
+
+--- Slide 7 ---
+Query processing: AND
+Consider processing the query: Brutus AND Caesar
+  Locate Brutus in the Dictionary;
+    Retrieve its postings.
+  Locate Caesar in the Dictionary;
+    Retrieve its postings.
+  “Merge” the two postings.
+INFORMATION RETRIEVAL
+
+--- Slide 8 ---
+The merge
+Walk through the two postings simultaneously, in time linear in the total number of postings entries.
+If the list lengths are x and y, the merge takes O(x+y) operations.
+Crucial: postings sorted by docID.
+INFORMATION RETRIEVAL
+128
+34
+2
+
+--- Slide 9 ---
+Intersecting two postings lists (a “merge” algorithm)
+INFORMATION RETRIEVAL
+
+--- Slide 10 ---
+Boolean queries: Exact match
+Boolean retrieval model: being able to ask a query that is a Boolean expression:
+  Boolean Queries: using AND, OR and NOT to join query terms
+Views each document as a set of words
+  Is precise: document matches condition or not.
+Perhaps the simplest model to build an IR system on.
+INFORMATION RETRIEVAL
+
+--- Slide 11 ---
+Phrase queries
+Want to be able to answer queries such as “stanford university” – as a phrase
+Thus the sentence “I went to university at Stanford” is not a match.
+  The concept of phrase queries has proven easily understood by users; one of the few “advanced search” ideas that works.
+  Many more queries are implicit phrase queries.
+INFORMATION RETRIEVAL
+
+--- Slide 12 ---
+Positional indexes
+In the postings, store, for each term the position(s) in which tokens of it appear:
+  <term, number of docs containing term;
+  doc1: position1, position2 … ;
+  doc2: position1, position2 … ;
+  etc.>
+INFORMATION RETRIEVAL
+
+--- Slide 13 ---
+Processing a phrase query
+Extract inverted index entries for each distinct term: to, be, or, not.
+Merge their doc:position lists to enumerate all positions with “to be or not to be”.
+  to:
+    2:1,17,74,222,551; 4:8,16,190,429,433; 7:13,23,191; ...
+  be:
+    1:17,19; 4:17,191,291,430,434; 5:14,19,101; ...
+Same general method for proximity searches
+INFORMATION RETRIEVAL
+
+--- Slide 14 ---
+Index Compression
+Why compression for inverted indexes?
+  Dictionary
+    Make it small enough to keep in main memory
+    Make it so small that you can keep some postings lists in main memory too
+  Postings file(s)
+    Reduce disk space needed
+    Decrease time needed to read postings lists from disk
+    Large search engines keep a significant part of the postings in memory.
+    Compression lets you keep more in memory
+INFORMATION RETRIEVAL
+
+--- Slide 15 ---
+Dictionary compression
+Array of fixed-width entries
+  ~400,000 terms; 28 bytes/term = 11.2 MB.
+INFORMATION RETRIEVAL
+
+--- Slide 16 ---
+Dictionary compression
+Most of the bytes in the Term column are wasted – we allot 20 bytes for 1 letter terms.
+  And we still can’t handle supercalifragilisticexpialidocious or hydrochlorofluorocarbons.
+Written English averages ~4.5 characters/word.
+Ave. dictionary word in English: ~8 characters
+  How do we use ~8 characters per dictionary term?
+INFORMATION RETRIEVAL
+
+--- Slide 17 ---
+Dictionary compression
+Dictionary-as-a-String
+  Store dictionary as a (long) string of characters:
+    Pointer to next word shows end of current word
+    Hope to save up to 60% of dictionary space.
+INFORMATION RETRIEVAL
+
+--- Slide 18 ---
+Dictionary compression
+Blocking
+  Store pointers to every kth term string.
+    Example below: k=4.
+  Need to store term lengths (1 extra byte)
+INFORMATION RETRIEVAL
+
+--- Slide 19 ---
+Dictionary compression
+Front coding
+  Sorted words commonly have long common prefix – store differences only
+    (for last k-1 in a block of k)
+    8automata8automate9automatic10automation
+INFORMATION RETRIEVAL
+
+--- Slide 20 ---
+Postings compression
+The postings file is much larger than the dictionary, factor of at least 10.
+Key desideratum: store each posting compactly.
+A posting for our purposes is a docID.
+  For Reuters (800,000 documents), we would use 32 bits per docID when using 4-byte integers.
+  Alternatively, we can use log2 800,000 ≈ 20 bits per docID.
+The goal: use a lot less than 20 bits per docID.
+INFORMATION RETRIEVAL
+
+--- Slide 21 ---
+Postings compression
+We store the list of docs containing a term in increasing order of docID.
+  computer: 33,47,154,159,202 …
+Consequence: it suffices to store gaps.
+  33,14,107,5,43 …
+Hope: most gaps can be encoded/stored with far fewer than 20 bits.
+INFORMATION RETRIEVAL
+
+--- Slide 22 ---
+Ranked retrieval
+Rather than a set of documents satisfying a query expression, in ranked retrieval models, the system returns an ordering over the (top) documents in the collection with respect to a query.
+Free text queries: Rather than a query language of operators and expressions, the user’s query is just one or more words in a human language.
+In principle, there are two separate choices here, but in practice, ranked retrieval models have normally been associated with free text queries and vice versa.
+INFORMATION RETRIEVAL
+
+--- Slide 23 ---
+Scoring as the basis of ranked retrieval
+We wish to return in order the documents most likely to be useful to the searcher.
+How can we rank-order the documents in the collection with respect to a query?
+  Assign a score – say in [0, 1] – to each document
+  This score measures how well document and query “match”.
+INFORMATION RETRIEVAL
+
+--- Slide 24 ---
+Weight matrix
+  Each document is now represented by a real-valued vector of tf-idf weights ∈ R|V|
+INFORMATION RETRIEVAL
+
+--- Slide 25 ---
+Documents as vectors
+So we have a |V|-dimensional vector space.
+Terms are axes of the space.
+Documents are points or vectors in this space.
+Very high-dimensional: tens of millions of dimensions when you apply this to a web search engine.
+These are very sparse vectors - most entries are zero.
+INFORMATION RETRIEVAL
+
+--- Slide 26 ---
+Queries as vectors
+Key idea 1: Do the same for queries: represent them as vectors in the space
+Key idea 2: Rank documents according to their proximity to the query in this space.
+proximity = similarity of vectors
+proximity ≈ inverse of distance
+INFORMATION RETRIEVAL
+
+--- Slide 27 ---
+Why distance is a bad idea?
+INFORMATION RETRIEVAL
+
+--- Slide 28 ---
+Use angle instead of distance
+Take a document d and append it to itself. Call this document d′. “Semantically” d and d′ have the same content.
+The Euclidean distance between the two documents can be quite large.
+The angle between the two documents is 0, corresponding to maximal similarity.
+Key idea: Rank documents according to angle with query.
+INFORMATION RETRIEVAL
+
+--- Slide 29 ---
+From angles to cosines
+The following two notions are equivalent.
+  Rank documents in decreasing order of the angle between query and document
+  Rank documents in increasing order of cosine(query, document)
+Cosine is a monotonically decreasing function for the interval [0o, 180o].
+INFORMATION RETRIEVAL
+
+--- Slide 30 ---
+cosine(query, document)
+INFORMATION RETRIEVAL
+
+--- Slide 31 ---
+Computing cosine scores
+INFORMATION RETRIEVAL
+
+--- Slide 32 ---
+Spell correction
+Two main Flavors
+  Isolated word
+    Check each word on its own for misspelling
+    Will not catch typos resulting in correctly spelled words
+    e.g., from  form
+  Context-sensitive
+    Look at surrounding words,
+    e.g., I flew form Heathrow to Narita.
+INFORMATION RETRIEVAL
+
+--- Slide 33 ---
+Isolated word correction
+Fundamental premise – there is a lexicon from which the correct spellings come.
+Two basic choices for this
+  A standard lexicon such as
+    Webster’s English Dictionary
+    An “industry-specific” lexicon – hand-maintained
+  The lexicon of the indexed corpus
+    E.g., all words on the web
+    All names, acronyms etc.
+    (Including the mis-spellings)
+INFORMATION RETRIEVAL
+
+--- Slide 34 ---
+Isolated word correction
+Given a lexicon and a character sequence Q, return the words in the lexicon closest to Q.
+What’s “closest”?
+We’ll study several alternatives
+  Edit distance (Levenshtein distance)
+  Weighted edit distance
+  n-gram overlap
+INFORMATION RETRIEVAL
+
+--- Slide 35 ---
+Edit distance
+Given two strings S1 and S2, the minimum number of operations to convert one to the other.
+Operations are typically character-level
+  Insert, Delete, Replace, (Transposition)
+E.g., the edit distance from dof to dog is 1
+  From cat to act is 2	   (Just 1 with transpose.)
+  from cat to dog is 3.
+Generally found by dynamic programming.
+INFORMATION RETRIEVAL
+
+--- Slide 36 ---
+Edit distance
+INFORMATION RETRIEVAL
+
+--- Slide 37 ---
+n-gram overlap
+Enumerate all the n-grams in the query string as well as in the lexicon.
+Use the n-gram index to retrieve all lexicon terms matching any of the query n-grams.
+Threshold by number of matching n-grams
+  Variants – weight by keyboard layout, etc.
+INFORMATION RETRIEVAL
+
+--- Slide 38 ---
+Example with trigrams
+Suppose the text is november
+  Trigrams are nov, ove, vem, emb, mbe, ber.
+The query is december
+  Trigrams are dec, ece, cem, emb, mbe, ber.
+So 3 trigrams overlap (of 6 in each term)
+How can we turn this into a normalized measure of overlap?
+INFORMATION RETRIEVAL
+
+--- Slide 39 ---
+Jaccard coefficient
+A commonly-used measure of overlap. Let X and Y be two sets then the J.C. is
+Equals 1 when X and Y have the same elements and zero when they are disjoint
+X and Y don’t have to be of the same size
+Always assigns a number between 0 and 1
+  Now threshold to decide if you have a match
+  E.g., if J.C. > 0.8, declare a match
+INFORMATION RETRIEVAL
+
+--- Slide 40 ---
+Context-sensitive spell correction
+Text: I flew from Heathrow to Narita.
+Consider the phrase query “flew form Heathrow”
+We’d like to respond - Did you mean “flew from Heathrow”?
+because no docs matched the query phrase.
+INFORMATION RETRIEVAL
+
+--- Slide 41 ---
+Context-sensitive spell correction
+Need surrounding context to catch this.
+First idea: retrieve dictionary terms close (in weighted edit distance) to each query term.
+Now try all possible resulting phrases with one word “fixed” at a time
+  flew from heathrow
+  fled form heathrow
+  flea form heathrow
+  …
+Hit-based spelling correction: Suggest the alternative that has lots of hits.
+INFORMATION RETRIEVAL
+
+--- Slide 42 ---
+Query expansion
+Improving results
+  For high recall. e.g., searching for aircraft doesn’t match with plane; nor thermodynamic with heat
+Options for improving results…
+  Global methods: independent of queries
+    Query expansion
+      Thesauri
+      Automatic thesaurus generation
+  Local methods
+    Relevance feedback
+    Pseudo relevance feedback
+INFORMATION RETRIEVAL
+
+--- Slide 43 ---
+Relevance Feedback
+User feedback on relevance of docs in initial set of results.
+  User issues a (short, simple) query
+  The user marks some results as relevant or non-relevant.
+  The system computes a better representation of the information need based on feedback.
+  Relevance feedback can go through one or more iterations.
+Idea: it may be difficult to formulate a good query when you don’t know the collection well, so iterate.
+INFORMATION RETRIEVAL
+
+--- Slide 44 ---
+Key concept: Centroid
+The centroid is the center of mass of a set of points.
+Definition: Centroid
+where C is a set of documents.
+INFORMATION RETRIEVAL
+
+--- Slide 45 ---
+Rocchio 1971 Algorithm (SMART)
+Used in practice:
+  Dr  = set of known relevant doc vectors
+  Dnr = set of known irrelevant doc vectors
+  qm = modified query vector; q0 = original query vector;α,β,γ: weights (hand-chosen or set empirically)
+New query moves toward relevant documents and away from irrelevant documents.
+INFORMATION RETRIEVAL
+
+--- Slide 46 ---
+Query Expansion
+In relevance feedback, users give additional input (relevant/non-relevant) on documents, which is used to reweight terms in the documents.
+In query expansion, users give additional input (good/bad search term) on words or phrases.
+INFORMATION RETRIEVAL
+
+--- Slide 47 ---
+Thesaurus-based query expansion
+For each term, t, in a query, expand the query with synonyms and related words of t from the thesaurus
+  feline → feline cat
+May weight added terms less than original query terms.
+Generally increases recall.
+Widely used in many science/engineering fields.
+May significantly decrease precision, particularly with ambiguous terms.
+  “interest rate” → “interest rate fascinate evaluate”
+There is a high cost of manually producing a thesaurus
+  And for updating it for scientific changes
+INFORMATION RETRIEVAL
+
+--- Slide 48 ---
+Automatic Thesaurus Generation
+Attempt to generate a thesaurus automatically by analyzing the collection of documents.
+Fundamental notion: similarity between two words.
+Definition 1: Two words are similar if they co-occur with similar words.
+Definition 2: Two words are similar if they occur in a given grammatical relation with the same words.
+Co-occurrence based is more robust, grammatical relations are more accurate.
+INFORMATION RETRIEVAL
+
+--- Slide 49 ---
+Co-occurrence Thesaurus
+Simplest way to compute one is based on term-term similarities in C = AAT where A is term-document matrix.
+wi,j = (normalized) weight for (ti ,dj)
+For each ti, pick terms with high values in C.
+INFORMATION RETRIEVAL

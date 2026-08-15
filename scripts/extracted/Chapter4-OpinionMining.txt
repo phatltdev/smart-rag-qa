@@ -1,0 +1,317 @@
+=== FILE: Chapter4-OpinionMining.pptx ===
+Total slides: 32
+
+--- Slide 1 ---
+NATURAL LANGUAGE PROCESSING (NLP)
+Chapter 4: OPINION MINING
+Trương Quốc Định
+Faculty of Information Systems – College of Information & Communication Technology
+
+--- Slide 2 ---
+Introduction
+Opinion mining is a computational study of opinion, sentiment, evaluation and emotion.
+Why is it important?
+  Opinion are key influencers of our behaviors.
+    Whenever we need to make a decision we often seek out the opinions from others.
+    Rise of social media  opinion data.
+  Rise of AI and chatbots
+    Emotion and sentiments are key to human communication.
+OPINION MINING
+
+--- Slide 3 ---
+Introduction
+Sentiment – an attitude, thought or judgment prompted by feeling.
+Opinion – a view, judgment or appraisal formed in the mind about a particular matter.
+Sentiment analysis - A Fascinating Problem
+  Intellectually challenging & major applications.
+    A popular research topic in recent years in NLP and Web data mining.
+  It touches every aspect of NLP and yet is restricted and confined.
+    Little research in NLP/Linguistics in the past.
+  Potentially a major technology from NLP
+    But “not yet” and not easy!
+    Data sourcing and data integration are hard too!
+OPINION MINING
+
+--- Slide 4 ---
+Introduction
+Two main types of opinions
+  Regular opinions: Sentiment/opinion expressions on some target entities.
+    Direct opinions: “The touch screen is really cool”
+    Indirect opinions: “After taking the drug, my pain has gone”
+  Comparative opinions: Comparisons of more than one entity.
+    E.g., “iPhone is better than Blackberry”
+  We focus on regular opinions first, and just call them opinions.
+OPINION MINING
+
+--- Slide 5 ---
+A Model of opinion mining
+An opinion is a quadruple (Liu, 2012)
+  (target, sentiment, holder, time)
+  Concise but not easy to use!!!
+    E.g. “The voice quality of iPhone is amazing.” (target = voice quality??? Not quite.)
+An opinion is a quintuple
+  (entity, aspect, sentiment, holder, time)
+    Entity: target entity (or object).
+    Aspect: feature of the entity.
+    Sentiment: positive, negative, neutral, a rating or an emotion,
+    Holder: opinion holder.
+    Time: time when the opinion was expressed.
+OPINION MINING
+
+--- Slide 6 ---
+A Model of opinion mining
+An example blog in quintuples
+  Id: XYZ567 on 08/10/2023 – “I bought iPhone13 yesterday. It is such a nice phone. The touch screen is really cool. The voice quality is great too. However, my mother was mad with me as I did not tell her before I bought the phone. She also thought the phone was too expensive.”
+  What do we see?
+    Opinion targets: entities and their features
+    Sentiments: positive and negative
+    Opinion holders: persons who hold the opinions
+    Time: when opinions were expressed
+OPINION MINING
+
+--- Slide 7 ---
+A Model of opinion mining
+An example blog in quintuples
+  (iPhone13, GENERAL, +, XYZ567, 08/10/2023)
+  (iPhone13, touch_screen, +, XYZ567, 08/10/2023)
+  (iPhone13, prix, -, his_mother, 08/10/2023)
+  …
+OPINION MINING
+
+--- Slide 8 ---
+Opinion Summary
+With a lot of opinions, a summary is necessary.
+  A multi-document summarization task.
+For factual texts, summarization is to select the most important facts and present them in a sensible order while avoiding repetition.
+  1 fact = any number of the same fact
+But for opinion documents, it is different because opinions have a quantitative side & have targets
+  1 opinion ≠ a number of opinions
+Aspect-based summary is more suitable.
+OPINION MINING
+
+--- Slide 9 ---
+Opinion Summary
+Aspect-based summary
+  I bought an iPhone a few days ago. It was such a nice phone. The touch screen was really cool. The voice quality was clear too. Although the battery life was not long, that is ok for me. However, my mother was mad with me as I did not tell her before I bought the phone. She also thought the phone was too expensive, and wanted me to return it to the shop. …
+OPINION MINING
+Feature Based Summary
+Feature1: Touch screen
+Positive:  212
+The touch screen was really cool.
+The touch screen was so easy to use and can do amazing things.
+…
+Negative: 6
+The screen is easily scratched.
+I have a lot of difficulty in removing finger marks from the touch screen.
+…
+Feature2: battery life
+…
+
+--- Slide 10 ---
+Opinion Summary
+OPINION MINING
+
+--- Slide 11 ---
+Aspect-based Opinion Summary
+OPINION MINING
+
+--- Slide 12 ---
+Reason for Opinion
+A reason is the justification or explanation of the opinion.
+There are two main cases:
+  Negative about an entity due to a bad aspect.
+    I hate this car as it eats to much gas.
+  Negative about an aspect because of a reason.
+    This car is too small.
+OPINION MINING
+
+--- Slide 13 ---
+Qualifier of Opinion
+A qualifier of an opinion limits or modifies the meaning of the opinion.
+It tells what an opinion is useful for, e.g.
+  This car is too small for a tall person.
+  The picture quality of night shots is bad.
+Not every opinion comes with an explicit reason and/or qualifier.
+  This car is bad.
+OPINION MINING
+
+--- Slide 14 ---
+Sentiment classification
+Classify a whole opinion document (review) based on the overall sentiment of the opinion holder.
+  Classes: Positive, Negative, Neutral.
+It is basically a text classification problem.
+OPINION MINING
+
+--- Slide 15 ---
+Sentiment classification
+Assumption
+  The doc is written by a single person and express opinion on a single entity.
+  Reviews usually satisfy the assumption.
+  Forum postings and blogs do not
+    They may mention and compare multiple entities.
+    Many postings express no sentiments.
+OPINION MINING
+
+--- Slide 16 ---
+Sentiment classification
+Supervised learning
+  Directly apply supervised learning techniques to classify reviews in to appropriate class.
+  Best features has been studied by numerous researchers.
+    Terms weighting schemes.
+    POS tags.
+    Opinion words.
+    Negation
+    Syntactic dependency
+OPINION MINING
+
+--- Slide 17 ---
+Sentiment classification
+Lexicon - based approach (Taboada et al., 2011 )
+  Using a set of sentiment terms, called the sentiment lexicon.
+    Positive words: great, beautiful, amazing, …
+    Negative words: bad, unreliable, terrible awful, …
+  The score opinion value for each sentiment term is assigned a value from [-5, +5].
+  Decide the sentiment of a review by aggregating scores from all sentiment terms.
+OPINION MINING
+
+--- Slide 18 ---
+Sentiment classification
+Review rating prediction
+  Predict the rating scores of reviews (e.g. 1 to 5 stars).
+  Training and testing are reviews with star ratings.
+  The problem is formulated as regression since the rating scores are ordinal.
+OPINION MINING
+
+--- Slide 19 ---
+Sentence sentiment analysis
+Usually consist of two steps
+  Subjective classification
+    To identify subjective sentence.
+  Sentiment classification of subjective sentence
+But bear in mind
+  Many objective sentences can imply sentiment.
+  Many subjective sentences do not express positive/negative opinions.
+    E.g. I believe he went home yesterday.
+OPINION MINING
+
+--- Slide 20 ---
+Sentence sentiment analysis
+Assumption
+  Each sentence is written by a single person and express a single opinion.
+  True for simple sentence
+    E.g. I like this car.
+  But not true for many compound or complex sentences
+    E.g. I like the picture quality but battery life sucks.
+OPINION MINING
+
+--- Slide 21 ---
+Segmentation and classification
+A single sentence may contain multiple opinions and subjective and factual clauses.
+  A study of automatic clause opinion classification is needed.
+OPINION MINING
+
+--- Slide 22 ---
+Aspect extraction
+Given an opinion corpus, extract all aspects
+Four main approaches
+  Finding frequent nouns and noun phrases.
+  Exploiting opinion and target relations.
+  Supervised learning.
+  Topic modelling.
+OPINION MINING
+
+--- Slide 23 ---
+Aspect extraction
+Frequent nouns and noun phrases
+  Nouns (NN) that are frequently mentioned are likely to be true aspects.
+  Why?
+    Most aspects are nouns or noun phrases.
+    When product aspects/features are discussed, the words we used often converge.
+    Those frequent ones are usually the main aspects that people are interested in.
+OPINION MINING
+
+--- Slide 24 ---
+Aspect extraction
+OPINION MINING
+
+--- Slide 25 ---
+Aspect extraction
+Exploiting opinion and target relations
+  Key idea: opinions have targets; opinion terms are used to modify aspects and entities.
+    The pictures are absolutely amazing.
+    This is an amazing software.
+  The syntactic relation is approximated with the nearest noun phrases to the opinion word in.
+OPINION MINING
+
+--- Slide 26 ---
+Aspect extraction
+Exploiting opinion and target relations
+  Explicit aspects: Aspect explicitly mentioned as noun or noun phrase in a sentence.
+    The picture quality of this phone is great.
+  Implicit aspects: Aspect not explicitly mentioned in a sentence but are implied.
+    This car is so expensive.
+    This phone will nots easily fit in a pocket.
+    Include 16GB is stingy.
+OPINION MINING
+
+--- Slide 27 ---
+Aspect extraction
+Using supervised learning
+  Using sequence labelling methods such as Hidden Markov Models, Conditional Random Fields …
+  Once aspect expressions are discovered, group them into aspect categories.
+    E.g. power usage, battery life.
+    Based on some similarity methods but it needs a taxonomy of aspects.
+      Mapping: the system maps each discovered aspect to an aspect node in the taxonomy.
+      Similarity metrics: string similarity, synonym and other distance measures using WordNet.
+OPINION MINING
+
+--- Slide 28 ---
+Aspect extraction
+Using unsupervised learning for grouping aspect synonyms
+  Clustering, Constrained topic modelling …
+  A variety of information/similarities are used to cluster aspect expressions into aspect categories
+    Lexical similarity based on WordNet
+    Distribution information
+    Syntactical constraints
+    …
+OPINION MINING
+
+--- Slide 29 ---
+Aspect extraction
+Topic modelling
+OPINION MINING
+
+--- Slide 30 ---
+Aspect extraction
+Topic modelling
+  A topic is basically an aspect.
+    A document is a distribution over topics.
+    A topic is a distribution over words (price, cost, cheap, expensive …).
+  Aspect extraction has two tasks
+    Extract aspect expressions
+    Cluster them (same: picture, photo, image)
+  Top models such as: pLSA (Hofmann, 1999 ) and LDA (Blei et al, 2003).
+OPINION MINING
+
+--- Slide 31 ---
+Aspect extraction
+Topic modelling
+  Use topic models to model aspects.
+  Jointly model both aspects and sentiments.
+  Knowledge-based modelling: unsupervised models are often insufficient.
+    Not producing coherent topics/aspects.
+    Knowledge-based topic models have been proposed
+      Guided by user-specified prior domain knowledge.
+OPINION MINING
+
+--- Slide 32 ---
+Sentiment (opinion) lexicon
+List of words or expressions used to express people’s subjective feeling and sentiments/opinions.
+They are instrumental for sentiment analysis.
+There seem to be endless variety of sentiment bearing expression.
+Many of them are context dependent, not just application domain dependent.
+Three main ways to compile such list:
+  Manual approach
+  Corpus-based approach
+  Dictionary-based approach.
+OPINION MINING
