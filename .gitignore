@@ -1,0 +1,26 @@
+# Secrets and environment
+.env
+
+# Data (large files not committed)
+data/raw/*
+data/interim/*
+data/processed/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# ChromaDB local storage
+chroma_store/
+
+# Model checkpoints / cache
+models/
+cache/
+__pycache__/
+*.pyc
+
+# Experiment artifacts (keep configs, ignore bulky results)
+results/figures/*.png
+
+# OS
+.DS_Store
+Thumbs.db

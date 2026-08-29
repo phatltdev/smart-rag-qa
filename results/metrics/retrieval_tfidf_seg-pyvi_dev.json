@@ -1,0 +1,52 @@
+{
+  "experiment_id": "retrieval_tfidf_seg-pyvi_dev",
+  "date": "2026-08-25T11:02:46",
+  "research_question": "RQ1",
+  "dataset_version": "zalo2021-fae7d632ad",
+  "split": "dev",
+  "n_questions": 100,
+  "preprocessing": {
+    "unicode_normalization": "NFC",
+    "whitespace_normalization": true,
+    "remove_noise_chars": true,
+    "lowercase": false,
+    "word_segmentation": "pyvi",
+    "remove_stopwords": false
+  },
+  "chunking": {
+    "strategy": "article",
+    "chunk_size": 256,
+    "chunk_overlap": 0
+  },
+  "index": {
+    "type": "tfidf",
+    "ngram": [
+      1,
+      2
+    ]
+  },
+  "random_seed": 42,
+  "elapsed_seconds": 272.5,
+  "metrics": {
+    "n_questions": 100,
+    "hit@k": {
+      "1": 0.3,
+      "3": 0.52,
+      "5": 0.59,
+      "10": 0.69
+    },
+    "precision@k": {
+      "1": 0.3,
+      "3": 0.1733333333333333,
+      "5": 0.11800000000000001,
+      "10": 0.069
+    },
+    "recall@k": {
+      "1": 0.3,
+      "3": 0.515,
+      "5": 0.585,
+      "10": 0.685
+    },
+    "mrr": 0.42599603174603173
+  }
+}

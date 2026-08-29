@@ -1,0 +1,25 @@
+[theme]
+base = "dark"
+primaryColor = "#EF4444"
+backgroundColor = "#0D1117"
+secondaryBackgroundColor = "#161B22"
+textColor = "#F0F6FC"
+borderColor = "#30363D"
+baseRadius = "medium"
+buttonRadius = "medium"
+font = "sans-serif"
+codeFont = "monospace"
+
+[theme.sidebar]
+backgroundColor = "#0D1117"
+secondaryBackgroundColor = "#161B22"
+textColor = "#F0F6FC"
+borderColor = "#30363D"
+
+[client]
+# Hide the built-in developer toolbar (Deploy button + main menu) so the
+# public portal starts directly with the system header.
+toolbarMode = "minimal"
+
+[server]
+runOnSave = true

@@ -1,0 +1,52 @@
+{
+  "experiment_id": "retrieval_tfidf_seg-none_dev",
+  "date": "2026-08-29T15:19:17",
+  "research_question": "RQ1",
+  "dataset_version": "zalo2021-0148b8f1cc",
+  "split": "dev",
+  "n_questions": 100,
+  "preprocessing": {
+    "unicode_normalization": "NFC",
+    "whitespace_normalization": true,
+    "remove_noise_chars": true,
+    "lowercase": false,
+    "word_segmentation": "none",
+    "remove_stopwords": false
+  },
+  "chunking": {
+    "strategy": "article",
+    "chunk_size": 256,
+    "chunk_overlap": 0
+  },
+  "index": {
+    "type": "tfidf",
+    "ngram": [
+      1,
+      2
+    ]
+  },
+  "random_seed": 42,
+  "elapsed_seconds": 74.0,
+  "metrics": {
+    "n_questions": 100,
+    "hit@k": {
+      "1": 0.28,
+      "3": 0.48,
+      "5": 0.63,
+      "10": 0.72
+    },
+    "precision@k": {
+      "1": 0.28,
+      "3": 0.16,
+      "5": 0.126,
+      "10": 0.07200000000000001
+    },
+    "recall@k": {
+      "1": 0.28,
+      "3": 0.475,
+      "5": 0.625,
+      "10": 0.715
+    },
+    "mrr": 0.4079126984126984
+  }
+}

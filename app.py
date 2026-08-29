@@ -32,6 +32,7 @@ from src.config import (  # noqa: E402
     PreprocessingConfig,
 )
 from src.ingestion.zalo_loader import (  # noqa: E402
+    ArticleChunk,
     load_corpus,
     load_questions,
     load_stopwords,
@@ -43,7 +44,24 @@ from src.preprocessing.pipeline import (  # noqa: E402
     sentence_segment,
     segment_words,
 )
+from src.preprocessing.dataset_processor import (  # noqa: E402
+    artifact_is_current,
+    artifact_paths,
+    load_manifest,
+    load_processed_records,
+    load_processed_records_by_id,
+    list_manifests,
+    process_dataset,
+)
 from src.chunking.chunker import build_chunks  # noqa: E402
+from src.chunking.artifact import (  # noqa: E402
+    chunk_artifact_is_current,
+    chunk_artifact_paths,
+    generate_and_save_chunks,
+    list_chunk_manifests,
+    load_chunk_manifest,
+    load_chunk_records,
+)
 from src.retrieval.tfidf_retriever import TfidfRetriever  # noqa: E402
 from src.retrieval.dense_retriever import DEFAULT_MODEL, DenseRetriever  # noqa: E402
 from src.generation.ollama_client import (  # noqa: E402
@@ -52,8 +70,13 @@ from src.generation.ollama_client import (  # noqa: E402
     ollama_available,
 )
 from src.evaluation.retrieval_metrics import evaluate_retrieval  # noqa: E402
+from src.ui.legal_portal import render_legal_portal  # noqa: E402
 
-st.set_page_config(page_title="Smart RAG QA", page_icon="⚖️", layout="wide")
+st.set_page_config(
+    page_title="RAG Management & QA Platform",
+    page_icon=":material/hub:",
+    layout="wide",
+)
 
 # Modern chat UI styling
 st.markdown(
@@ -188,49 +211,41 @@ def dataset_ready() -> bool:
 # ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
-st.sidebar.title(":material/balance: Smart RAG QA")
-st.sidebar.caption("Zalo AI 2021 — Legal Text Retrieval")
+st.sidebar.title(":material/hub: RAG Platform")
+st.sidebar.caption("Question answering & RAG engineering")
 
 if not dataset_ready():
     st.warning("Chưa có dataset trong `data/raw/`. Xem hướng dẫn `data/DATASET_GUIDE.md` để tải.")
     st.stop()
 
-# -- LLM connection status (always visible in sidebar)
-st.sidebar.subheader("Kiểm tra LLM")
-if ollama_available():
-    _models = list_ollama_models()
-    if _models:
-        st.sidebar.success(f":material/check_circle: Ollama: {', '.join(_models[:3])}")
-    else:
-        st.sidebar.warning(":material/warning: Ollama chạy nhưng chưa có model")
-else:
-    st.sidebar.error(":material/error: Ollama chưa kết nối (11434)")
+# -- Role-based navigation -------------------------------------------------
+# Authentication is outside the current project scope. This selector emulates
+# the role returned by an identity provider and strictly hides admin controls.
+_ROLE_OPTIONS = ["Người dùng", "Quản trị viên"]
+st.session_state.setdefault("app_role", "Quản trị viên")
+role = st.sidebar.segmented_control(
+    "Vai trò",
+    _ROLE_OPTIONS,
+    key="app_role",
+    selection_mode="single",
+    width="stretch",
+)
+is_admin = role == "Quản trị viên"
+st.sidebar.caption(
+    ":material/shield_person: Chế độ quản trị"
+    if is_admin else ":material/person: Không hiển thị cấu hình RAG nội bộ"
+)
 
-st.sidebar.divider()
-
-# -- Navigation: 3 parent menus in sidebar, sub-pages as tabs in main area
-# Chat (4.7) · Dữ liệu (4.1, 4.2) · Thí nghiệm & Đánh giá (4.3-4.6, 4.8)
-_DEFAULT_PAGE = "4.7 Chat với LLM (RAG)"
-
-_GROUP_OF = {
-    "4.1 Tổng quan": "data",
-    "4.2 Quản lý dữ liệu": "data",
-    "4.3 Phòng tiền xử lý": "lab",
-    "4.4 Chunking Lab": "lab",
-    "4.5 Lập chỉ mục": "lab",
-    "4.6 Retrieval Playground": "lab",
-    "4.8 Đánh giá Retrieval (RQ1, RQ2)": "lab",
+_ADMIN_PAGES = {
+    ":material/chat: Chat Playground": "4.7 Chat với LLM (RAG)",
+    ":material/description: Documents": "4.2 Quản lý dữ liệu",
+    ":material/account_tree: RAG Pipeline": "4.3 Phòng tiền xử lý",
+    ":material/analytics: Evaluation": "4.8 Đánh giá Retrieval (RQ1, RQ2)",
+    ":material/model_training: Models": "4.9 Models",
+    ":material/settings: Settings": "4.10 Settings",
+    ":material/receipt_long: Logs": "4.11 Logs",
 }
-
-_GROUP_META = {
-    "chat": (":material/chat_bubble:", "Chat / Tra cứu", _DEFAULT_PAGE),
-    "data": (":material/database:", "Dữ liệu", "4.1 Tổng quan"),
-    "lab": (":material/science:", "Thí nghiệm & Đánh giá", "4.3 Phòng tiền xử lý"),
-}
-
-_TAB_LABELS = {
-    "4.1 Tổng quan": ":material/dashboard: Tổng quan",
-    "4.2 Quản lý dữ liệu": ":material/folder_open: Quản lý dữ liệu",
+_PIPELINE_TABS = {
     "4.3 Phòng tiền xử lý": ":material/experiment: Tiền xử lý",
     "4.4 Chunking Lab": ":material/content_cut: Chunking",
     "4.5 Lập chỉ mục": ":material/storage: Lập chỉ mục",
@@ -238,100 +253,512 @@ _TAB_LABELS = {
     "4.8 Đánh giá Retrieval (RQ1, RQ2)": ":material/analytics: Đánh giá",
 }
 
-def _goto_group(group: str):
-    st.session_state["_active_page"] = _GROUP_META[group][2]
 
-def _set_page_from_tab(key: str):
-    label = st.session_state[key]
-    for pg, lb in _TAB_LABELS.items():
-        if lb == label:
-            st.session_state["_active_page"] = pg
-            return
+def _set_admin_page() -> None:
+    st.session_state["_active_page"] = _ADMIN_PAGES[st.session_state.admin_nav]
 
-_active_page = st.session_state.get("_active_page", _DEFAULT_PAGE)
-_active_group = _GROUP_OF.get(_active_page, "chat")
 
-with st.sidebar:
-    _cols = st.columns(len(_GROUP_META))
-    for _col, (_gid, (_icon, _name, _)) in zip(_cols, _GROUP_META.items()):
-        with _col:
-            st.button(
-                _icon,
-                key=f"nav_{_gid}",
-                help=_name,
-                on_click=_goto_group,
-                args=(_gid,),
-                use_container_width=True,
-                type="primary" if _gid == _active_group else "secondary",
-            )
-    st.caption(
-        f"**{_GROUP_META[_active_group][0]} {_GROUP_META[_active_group][1]}**"
+def _set_pipeline_tab() -> None:
+    st.session_state["_active_page"] = st.session_state.pipeline_tab
+
+
+if is_admin:
+    active_page = st.session_state.get("_active_page", "4.7 Chat với LLM (RAG)")
+    if active_page not in _ADMIN_PAGES.values() and active_page not in _PIPELINE_TABS:
+        active_page = "4.7 Chat với LLM (RAG)"
+    if active_page in _PIPELINE_TABS and not active_page.startswith("4.8"):
+        active_admin_label = ":material/account_tree: RAG Pipeline"
+    else:
+        active_admin_label = next(
+            (label for label, target in _ADMIN_PAGES.items() if target == active_page),
+            ":material/chat: Chat Playground",
+        )
+    st.session_state["_active_page"] = active_page
+    st.session_state["admin_nav"] = active_admin_label
+    st.sidebar.radio(
+        "Điều hướng quản trị",
+        list(_ADMIN_PAGES),
+        key="admin_nav",
+        on_change=_set_admin_page,
     )
+    page = st.session_state["_active_page"]
+else:
+    page = "5.1 Legal Portal"
+    st.session_state["_active_page"] = page
 
-# Tabs cho menu con (trừ nhóm Chat chỉ có 1 trang)
-_group_pages = [p for p in _GROUP_OF if _GROUP_OF[p] == _active_group]
-if len(_group_pages) > 1:
-    _ordered = [p for p in _TAB_LABELS if p in _group_pages]
-    _tab_labels = [_TAB_LABELS[p] for p in _ordered]
+if is_admin and page in _PIPELINE_TABS:
+    st.caption(":material/account_tree: **RAG Pipeline** · Cấu hình, quan sát và đánh giá từng thành phần")
+    st.session_state["pipeline_tab"] = page
     st.segmented_control(
-        "menu con",
-        _tab_labels,
+        "Các bước RAG pipeline",
+        list(_PIPELINE_TABS),
+        format_func=lambda target: _PIPELINE_TABS[target],
+        key="pipeline_tab",
         selection_mode="single",
-        default=_TAB_LABELS.get(_active_page, _tab_labels[0]),
+        on_change=_set_pipeline_tab,
+        width="stretch",
         label_visibility="collapsed",
-        key=f"tabs_{_active_group}",
-        on_change=_set_page_from_tab,
-        args=(f"tabs_{_active_group}",),
     )
-    st.divider()
-
-page = st.session_state.get("_active_page", _DEFAULT_PAGE)
+    st.caption(
+        "Preprocessing  →  Text segmentation  →  Embedding & vector store  "
+        "→  Search & ranking  →  Evaluation"
+    )
 
 # ---------------------------------------------------------------------------
 # Screen 4.1 — Overview
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner="Đang xây dựng chunks...")
-def get_built_chunks(strategy: str, chunk_size: int, chunk_overlap: int):
+def get_built_chunks(
+    strategy: str,
+    chunk_size: int,
+    chunk_overlap: int,
+    preprocessing_config_id: str | None = None,
+):
     """Chunk corpus with the given configuration (cached)."""
     cfg = ChunkingConfig(strategy=strategy, chunk_size=chunk_size,
                          chunk_overlap=chunk_overlap)
     _, chunks, _, _ = get_corpus()
+    if preprocessing_config_id:
+        records = load_processed_records_by_id(preprocessing_config_id)
+        chunks = [
+            ArticleChunk(
+                chunk_id=record["chunk_id"],
+                document_id=record["document_id"],
+                text=record["text"],
+                title=record["title"],
+                law_id=record["law_id"],
+                article_id=record["article_id"],
+                metadata=record.get("metadata", {}),
+            )
+            for record in records
+        ]
     built, stats = build_chunks(chunks, cfg)
     return cfg, built, stats
 
 
 @st.cache_resource(show_spinner="Đang build TF-IDF (preprocess corpus)...")
-def get_tfidf_index(segmentation: str):
+def get_tfidf_index(
+    segmentation: str,
+    chunk_artifact_id: str | None = None,
+):
     """TF-IDF index over corpus preprocessed with the given segmentation."""
     import time
 
     from src.preprocessing.pipeline import run_pipeline as _rp
 
-    _, chunks, _, _ = get_corpus()
+    _, chunks, dataset_version, _ = get_corpus()
     pcfg = PreprocessingConfig(word_segmentation=segmentation)
     texts, ids, metas = [], [], []
     t0 = time.time()
-    for c in chunks:
-        texts.append(_rp(c.text, pcfg).text)
-        ids.append(c.chunk_id)
-        metas.append({"law_id": c.law_id, "article_id": c.article_id})
+    if chunk_artifact_id:
+        records = load_chunk_records(chunk_artifact_id)
+        for record in records:
+            texts.append(record["text"])
+            ids.append(record["chunk_id"])
+            metas.append(
+                {
+                    "law_id": record["law_id"],
+                    "article_id": record["article_id"],
+                }
+            )
+    elif artifact_is_current(pcfg, dataset_version):
+        records = load_processed_records(pcfg)
+        for record in records:
+            texts.append(record["text"])
+            ids.append(record["chunk_id"])
+            metas.append(
+                {
+                    "law_id": record["law_id"],
+                    "article_id": record["article_id"],
+                }
+            )
+    else:
+        for c in chunks:
+            texts.append(_rp(c.text, pcfg).text)
+            ids.append(c.chunk_id)
+            metas.append({"law_id": c.law_id, "article_id": c.article_id})
     retriever = TfidfRetriever().fit(ids, texts, metas)
-    retriever.save()
+    index_id = chunk_artifact_id or pcfg.config_id()
+    retriever.save(PROJECT_ROOT / "models" / f"tfidf_{index_id}.pkl")
     return retriever, round(time.time() - t0, 1)
+
+
+def _set_admin_role() -> None:
+    """Return from the public portal to the administrator interface."""
+    st.session_state.app_role = "Quản trị viên"
+    st.session_state._active_page = "4.7 Chat với LLM (RAG)"
+
+
+def _queue_legal_question(question: str) -> None:
+    st.session_state["legal_pending_question"] = question
+
+
+def _render_legal_chat_transcript() -> None:
+    """Render the scrollable transcript without moving the input area."""
+    if not st.session_state.legal_chat:
+        st.subheader("Xin chào! Tôi là Trợ lý pháp lý AI.")
+        st.write(
+            "Tôi có thể hỗ trợ bạn tra cứu các quy định và văn bản pháp luật "
+            "có trong hệ thống."
+        )
+        suggestions = [
+            "Thời hiệu khởi kiện quyết định hành chính là bao lâu?",
+            "Điều kiện khiếu nại quyết định hành chính là gì?",
+            "Hồ sơ khởi kiện cần những tài liệu nào?",
+        ]
+        st.caption("Bạn có thể hỏi:")
+        for index, suggestion in enumerate(suggestions):
+            st.button(
+                suggestion,
+                key=f"legal_suggestion_{index}",
+                on_click=_queue_legal_question,
+                args=(suggestion,),
+                width="stretch",
+            )
+
+    for message_index, message in enumerate(st.session_state.legal_chat):
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            if message["role"] == "assistant":
+                sources = message.get("sources", [])
+                if sources:
+                    with st.expander(
+                        f":material/gavel: Nguồn tham khảo ({len(sources)})"
+                    ):
+                        for source in sources:
+                            st.markdown(
+                                f"**[{source['rank']}] Văn bản {source['law_id']}**  "
+                                f"\nĐiều {source['article_id']}"
+                            )
+                            st.write(source["text"][:500])
+                st.feedback("thumbs", key=f"legal_feedback_{message_index}")
+
+
+def _toggle_legal_chat_expanded() -> None:
+    """Toggle the chat panel between normal and expanded size."""
+    st.session_state.legal_chat_expanded = not st.session_state.legal_chat_expanded
+
+
+_LEGAL_THINKING_HTML = (
+    '<div class="legal-thinking">'
+    '<span class="legal-thinking-dot"></span>'
+    '<span class="legal-thinking-dot"></span>'
+    '<span class="legal-thinking-dot"></span>'
+    '<span class="legal-thinking-label">{label}</span>'
+    "</div>"
+)
+
+
+_LEGAL_COMPOSER_KEY_SHIM = """
+<script>
+if (!window.__legalChatComposerShim) {
+  window.__legalChatComposerShim = true;
+
+  function legalDialog() {
+    return document.querySelector('[data-testid="stDialog"] [role="dialog"]');
+  }
+  function legalComposerTextarea() {
+    var dialog = legalDialog();
+    if (!dialog) return null;
+    var form = dialog.querySelector(
+      '.st-key-legal_chat_composer [data-testid="stForm"]'
+    );
+    return form ? form.querySelector('textarea') : null;
+  }
+  function legalTextareaMetrics(ta) {
+    var cs = getComputedStyle(ta);
+    var lineH = parseFloat(cs.lineHeight) || 20;
+    var pad = (parseFloat(cs.paddingTop) || 0)
+      + (parseFloat(cs.paddingBottom) || 0);
+    return { lineH: lineH, pad: pad };
+  }
+  function legalUnclampRoot(ta) {
+    var root = ta.closest('[data-testid="stTextAreaRootElement"]')
+      || ta.parentElement;
+    if (root && root !== ta) root.style.height = 'auto';
+  }
+  /* One row (default / after send). */
+  function legalFitOneRow(ta) {
+    if (!ta) return;
+    var m = legalTextareaMetrics(ta);
+    legalUnclampRoot(ta);
+    ta.style.height = (m.lineH + m.pad) + 'px';
+    ta.style.overflowY = 'hidden';
+  }
+  /* Auto-grow up to 4 lines, then scroll inside. Measuring starts from a
+     one-row height: the textarea's intrinsic `rows` size would otherwise
+     inflate scrollHeight when height is auto. */
+  function legalAutoGrow(ta) {
+    if (!ta) return;
+    var m = legalTextareaMetrics(ta);
+    var one = m.lineH + m.pad;
+    var max = m.lineH * 4 + m.pad;
+    legalUnclampRoot(ta);
+    ta.style.height = one + 'px';
+    var need = Math.max(ta.scrollHeight, one);
+    ta.style.height = Math.min(need, max) + 'px';
+    ta.style.overflowY = need > max ? 'auto' : 'hidden';
+  }
+
+  /* Enter sends, Shift+Enter inserts a newline. */
+  document.addEventListener(
+    'keydown',
+    function (event) {
+      if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey
+          || event.metaKey || event.altKey) return;
+      var target = event.target;
+      if (!target || target.tagName !== 'TEXTAREA') return;
+      var dialog = legalDialog();
+      if (!dialog || !dialog.contains(target)) return;
+      var inComposer = dialog.querySelector(
+        '.st-key-legal_chat_composer [data-testid="stForm"]'
+      );
+      if (!inComposer || !inComposer.contains(target)) return;
+      var submit = dialog.querySelector(
+        '[data-testid="stFormSubmitButton"] button'
+      );
+      if (submit && !submit.disabled) {
+        event.preventDefault();
+        submit.click();
+      }
+    },
+    true
+  );
+
+  /* Typing grows the textarea. */
+  document.addEventListener(
+    'input',
+    function (event) {
+      var ta = event.target;
+      if (!ta || ta.tagName !== 'TEXTAREA') return;
+      var dialog = legalDialog();
+      if (dialog && dialog.contains(ta)) legalAutoGrow(ta);
+    },
+    true
+  );
+
+  /* Streamlit re-renders the widget on rerun (height back to its own
+     default): refit — one row when empty, grown when it has content. */
+  new MutationObserver(function () {
+    var ta = legalComposerTextarea();
+    if (!ta) return;
+    if (ta.value) legalAutoGrow(ta);
+    else legalFitOneRow(ta);
+  }).observe(document.body, { childList: true, subtree: true });
+}
+</script>
+"""
+
+
+@st.dialog("⚖ Trợ lý pháp lý AI", width="medium")
+def render_legal_assistant() -> None:
+    """Public legal assistant using the existing grounded RAG backend."""
+    st.session_state.setdefault("legal_chat", [])
+    st.session_state.setdefault("legal_chat_expanded", False)
+
+    # -- Panel size: expand / collapse (injected style + smooth transition) --
+    if st.session_state.legal_chat_expanded:
+        st.markdown(
+            "<style>"
+            "@media (min-width:768px){[data-testid='stDialog'] [role='dialog']{"
+            "width:min(720px,calc(100vw - 48px))!important;"
+            "height:min(820px,calc(100dvh - 48px))!important;}}"
+            "@media (max-width:767px){[data-testid='stDialog'] [role='dialog']{"
+            "top:12px!important;bottom:calc(12px + env(safe-area-inset-bottom))!important;"
+            "left:12px!important;right:12px!important;width:auto!important;"
+            "height:calc(100dvh - 24px - env(safe-area-inset-bottom))!important;}}"
+            "</style>",
+            unsafe_allow_html=True,
+        )
+    st.button(
+        "Thu nhỏ" if st.session_state.legal_chat_expanded else "Mở rộng",
+        icon=":material/close_fullscreen:"
+        if st.session_state.legal_chat_expanded
+        else ":material/open_in_full:",
+        key="legal_chat_expand",
+        help="Thu nhỏ khung chat" if st.session_state.legal_chat_expanded
+        else "Mở rộng khung chat",
+        on_click=_toggle_legal_chat_expanded,
+        type="tertiary",
+    )
+
+    # -- Queue a newly typed question, then rerun so the user bubble and the
+    #    thinking indicator render above the composer during processing --
+    pending_question = st.session_state.pop("legal_pending_question", None)
+    if pending_question:
+        st.session_state.legal_chat.append(
+            {"role": "user", "content": pending_question}
+        )
+
+    with st.container(key="legal_chat_subtitle"):
+        st.caption("Hỗ trợ tra cứu thông tin pháp luật trong kho dữ liệu của hệ thống")
+
+    # The only scrollable region of the panel (flex-grow, autoscroll).
+    with st.container(
+        height=300, border=False, key="legal_chat_transcript", autoscroll=True
+    ):
+        _render_legal_chat_transcript()
+
+    # Placeholder rendered between the messages and the composer: the thinking
+    # indicator fills it while the RAG pipeline runs, i.e. right ABOVE the
+    # composer, never below it.
+    thinking_slot = st.container(key="legal_chat_thinking")
+
+    # -- Composer: one rounded box with textarea + bottom-right actions -----
+    st.html(_LEGAL_COMPOSER_KEY_SHIM, unsafe_allow_javascript=True)
+    with st.container(key="legal_chat_composer"):
+        with st.form(
+            "legal_assistant_form",
+            border=False,
+            enter_to_submit=True,
+            clear_on_submit=True,
+        ):
+            typed_question = st.text_area(
+                "Câu hỏi pháp luật",
+                placeholder="Nhập câu hỏi pháp luật...",
+                label_visibility="collapsed",
+                height=68,
+            )
+            submitted = st.form_submit_button(
+                "Gửi",
+                icon=":material/arrow_upward:",
+                type="primary",
+                help="Gửi câu hỏi (Enter)",
+            )
+        with st.container(
+            horizontal=True,
+            horizontal_alignment="right",
+            key="legal_chat_actions",
+            gap="xsmall",
+        ):
+            with st.popover(
+                "Lịch sử",
+                icon=":material/history:",
+                help="Lịch sử trò chuyện",
+                use_container_width=False,
+            ):
+                user_questions = [
+                    message["content"]
+                    for message in st.session_state.legal_chat
+                    if message["role"] == "user"
+                ]
+                if user_questions:
+                    st.caption("**Hôm nay**")
+                    for historic_question in reversed(user_questions):
+                        st.write(f"• {historic_question[:80]}")
+                else:
+                    st.caption("Chưa có câu hỏi nào trong phiên hiện tại.")
+            st.button(
+                "Mới",
+                icon=":material/add_comment:",
+                key="legal_new_chat",
+                help="Cuộc trò chuyện mới",
+                on_click=lambda: st.session_state.update(legal_chat=[]),
+            )
+    st.caption(
+        "Thông tin chỉ mang tính tham khảo, không thay thế tư vấn pháp lý "
+        "chuyên nghiệp.",
+    )
+
+    if submitted and typed_question.strip():
+        st.session_state["legal_pending_question"] = typed_question.strip()
+        st.rerun(scope="fragment")
+    question = pending_question
+
+    if question:
+        try:
+            phase = thinking_slot.empty()
+            phase.markdown(
+                _LEGAL_THINKING_HTML.format(
+                    label="Đang tra cứu cơ sở pháp luật..."
+                ),
+                unsafe_allow_html=True,
+            )
+            pcfg = PreprocessingConfig(word_segmentation="none")
+            retriever, _ = get_tfidf_index("none")
+            processed_question = run_pipeline(question, pcfg).text
+            results = retriever.search(processed_question, top_k=5)
+            if not results:
+                raise ValueError("Không tìm thấy nguồn pháp luật phù hợp")
+            phase.markdown(
+                _LEGAL_THINKING_HTML.format(
+                    label="Đang tổng hợp câu trả lời..."
+                ),
+                unsafe_allow_html=True,
+            )
+            model_options = list_ollama_models() if ollama_available() else []
+            if not model_options:
+                raise ConnectionError("Trợ lý AI hiện chưa sẵn sàng")
+            response = generate_answer_stream(
+                question,
+                results,
+                model=model_options[0],
+                temperature=0.2,
+                max_tokens=512,
+            )
+            thinking_slot.empty()
+            st.session_state.legal_chat.append(
+                {
+                    "role": "assistant",
+                    "content": response.answer,
+                    "sources": [
+                        {
+                            "rank": result.rank,
+                            "law_id": result.law_id,
+                            "article_id": result.article_id,
+                            "text": result.text,
+                        }
+                        for result in results
+                    ],
+                }
+            )
+            st.rerun(scope="fragment")
+        except Exception as error:
+            thinking_slot.empty()
+            st.session_state.legal_chat.append(
+                {
+                    "role": "assistant",
+                    "content": f"Hiện chưa thể hoàn tất yêu cầu: {error}",
+                    "sources": [],
+                }
+            )
+            st.rerun(scope="fragment")
 
 
 # ---------------------------------------------------------------------------
 # Screens
 # ---------------------------------------------------------------------------
 if page.startswith("4.1"):
-    st.header("Tổng quan hệ thống")
+    st.header("Dashboard")
+    st.caption("Tổng quan dữ liệu và trạng thái các thành phần RAG từ nguồn thực tế.")
     docs, chunks, version, report = get_corpus()
     questions = get_questions()
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Số văn bản (law)", f"{len(docs):,}")
-    col2.metric("Số article (chunk)", f"{len(chunks):,}")
-    col3.metric("Số câu hỏi có nhãn", f"{len(questions):,}")
+    with st.container(horizontal=True):
+        st.metric("Documents", f"{len(docs):,}", border=True)
+        st.metric("Chunks", f"{len(chunks):,}", border=True)
+        st.metric("Labeled queries", f"{len(questions):,}", border=True)
+        st.metric(
+            "Valid articles",
+            f"{report['valid_articles']:,}",
+            border=True,
+        )
+
+    chart_data = pd.DataFrame(
+        {
+            "Thành phần": ["Documents", "Articles", "Questions"],
+            "Số lượng": [len(docs), len(chunks), len(questions)],
+        }
+    )
+    left, right = st.columns(2)
+    with left.container(border=True):
+        st.subheader("Quy mô dữ liệu")
+        st.bar_chart(chart_data, x="Thành phần", y="Số lượng")
+    with right.container(border=True):
+        st.subheader("Data quality")
+        st.metric("Empty articles removed", report["empty_articles"])
+        st.metric("Duplicate articles removed", report["duplicate_articles"])
+        st.caption("Các số liệu được tính trong quá trình nạp corpus, không phải mock data.")
 
     st.subheader("Trạng thái")
     st.write(f"- **Dataset version:** `{version}`")
@@ -384,7 +811,7 @@ elif page.startswith("4.2"):
     st.subheader("Câu hỏi + nhãn relevance (mẫu)")
     questions = get_questions()
     qdf = pd.DataFrame(questions).head(20)
-    st.dataframe(qdf, use_container_width=True)
+    st.dataframe(qdf, width="stretch")
 
     # -- Add new law incrementally (dense) + full refit (TF-IDF) ------------
     st.divider()
@@ -488,12 +915,21 @@ elif page.startswith("4.2"):
 # Screen 4.3 — Preprocessing lab
 # ---------------------------------------------------------------------------
 elif page.startswith("4.3"):
-    st.header("Phòng tiền xử lý dữ liệu")
+    st.header("Tiền xử lý dữ liệu")
+    st.caption(
+        "Preview trên đoạn mẫu hoặc materialize toàn bộ Zalo AI 2021 corpus "
+        "thành artifact có thể tái lập."
+    )
 
     st.sidebar.subheader("Cấu hình tiền xử lý")
     cfg = PreprocessingConfig(
         unicode_normalization=st.sidebar.selectbox(
-            "Unicode normalization", ["NFC", "none"]
+            "Unicode normalization",
+            ["NFC", "none"],
+            format_func=lambda value: (
+                "NFC — Khuyến nghị" if value == "NFC" else "Không chuẩn hóa"
+            ),
+            help="NFC giúp biểu diễn Unicode tiếng Việt nhất quán.",
         ),
         whitespace_normalization=st.sidebar.checkbox(
             "Whitespace normalization", value=True
@@ -502,14 +938,27 @@ elif page.startswith("4.3"):
         lowercase=st.sidebar.checkbox("Chuẩn hóa chữ thường", value=False,
                                       help="Không khuyến nghị cho dense model"),
         word_segmentation=st.sidebar.selectbox(
-            "Tách từ tiếng Việt", ["none", "underthesea", "pyvi"]
+            "Tách từ tiếng Việt",
+            ["none", "underthesea", "pyvi"],
+            format_func=lambda value: {
+                "none": "None — Khuyến nghị cho dense/baseline",
+                "underthesea": "Underthesea — Ưu tiên thử nghiệm TF-IDF",
+                "pyvi": "PyVi — Phương án đối chứng RQ1",
+            }[value],
+            help=(
+                "Không có phương pháp tốt nhất trước đánh giá. Hãy materialize từng "
+                "cấu hình và so sánh Recall@K/MRR."
+            ),
         ),
         remove_stopwords=st.sidebar.checkbox("Bỏ stop-word", value=False,
                                              help="Cảnh báo: có thể làm mất nghĩa pháp lý"),
     )
     st.sidebar.caption(f"config_id: `{cfg.config_id()}`")
 
-    tab_sample, tab_compare = st.tabs(["Thử trên một mẫu", "So sánh tách từ"])
+    tab_sample, tab_dataset, tab_compare = st.tabs(
+        ["Preview", "Xử lý toàn bộ dataset", "So sánh tách từ"],
+        on_change="rerun",
+    )
 
     # -- Tab 1: run pipeline on a sample, show step-by-step diff
     with tab_sample:
@@ -546,24 +995,118 @@ elif page.startswith("4.3"):
             for i, sent in enumerate(sentence_segment(text), 1):
                 st.write(f"{i}. {sent}")
 
-    # -- Tab 2: compare segmentation methods side by side
-    with tab_compare:
-        st.caption("Cùng một văn bản, so sánh `none` / `underthesea` / `pyvi` (RQ1)")
-        docs, chunks, _, _ = get_corpus()
-        sample_text = st.text_area(
-            "Văn bản so sánh", value=chunks[1].text[:400], height=150
-        )
-        if st.button("So sánh", type="primary"):
-            cols = st.columns(3)
-            for col, method in zip(cols, ["none", "underthesea", "pyvi"]):
-                with col:
-                    st.markdown(f"**`{method}`**")
-                    try:
-                        out = segment_words(sample_text, method)
-                        st.code(out, language=None)
-                        st.caption(f"{len(out.split())} token")
-                    except Exception as e:  # tool may not be installed yet
-                        st.error(f"Lỗi: {e}")
+    # -- Tab 2: materialize the full valid corpus as a versioned artifact
+    if tab_dataset.open:
+        with tab_dataset:
+            docs, chunks, dataset_version, _ = get_corpus()
+            artifact_path, manifest_path = artifact_paths(cfg)
+            manifest = load_manifest(cfg)
+            current_artifact = artifact_is_current(cfg, dataset_version)
+
+            st.subheader("Zalo AI 2021 — Legal Text Retrieval")
+            with st.container(horizontal=True):
+                st.metric("Documents", f"{len(docs):,}", border=True)
+                st.metric("Valid articles", f"{len(chunks):,}", border=True)
+                st.metric("Dataset version", dataset_version, border=True)
+                st.metric(
+                    "Artifact",
+                    "Sẵn sàng" if current_artifact else "Chưa có / hết hạn",
+                    border=True,
+                )
+
+            if current_artifact and manifest:
+                st.success(
+                    f"Artifact `{artifact_path.name}` phù hợp với dataset và "
+                    f"config `{cfg.config_id()}`.",
+                    icon=":material/check_circle:",
+                )
+                with st.container(horizontal=True):
+                    st.metric("Articles processed", f"{manifest['output_articles']:,}")
+                    st.metric("Articles changed", f"{manifest['changed_articles']:,}")
+                    st.metric("Tokens before", f"{manifest['tokens_before']:,}")
+                    st.metric("Tokens after", f"{manifest['tokens_after']:,}")
+                st.download_button(
+                    "Tải manifest",
+                    data=json.dumps(manifest, ensure_ascii=False, indent=2),
+                    file_name=manifest_path.name,
+                    mime="application/json",
+                    icon=":material/download:",
+                )
+            else:
+                st.info(
+                    "Chưa có artifact phù hợp. Dữ liệu raw sẽ chỉ được đọc; kết quả "
+                    "được ghi riêng vào `data/processed/`.",
+                    icon=":material/info:",
+                )
+
+            force_reprocess = st.checkbox(
+                "Force reprocess (ghi đè artifact cùng config_id)",
+                value=False,
+                help="Chỉ bật khi cần tạo lại artifact dù dataset và cấu hình không đổi.",
+            )
+            run_dataset = st.button(
+                "Xử lý toàn bộ dataset",
+                icon=":material/play_arrow:",
+                type="primary",
+                disabled=current_artifact and not force_reprocess,
+            )
+            if run_dataset:
+                progress = st.progress(0.0, text="Đang chuẩn bị corpus...")
+
+                def _update_preprocessing_progress(done: int, total: int) -> None:
+                    ratio = done / max(total, 1)
+                    progress.progress(
+                        ratio,
+                        text=f"Đang tiền xử lý article {done:,}/{total:,} ({ratio:.0%})",
+                    )
+
+                try:
+                    with st.status(
+                        "Đang tiền xử lý toàn bộ dataset...", expanded=True
+                    ) as status:
+                        st.write(f"Dataset version: `{dataset_version}`")
+                        st.write(f"Preprocessing config: `{cfg.config_id()}`")
+                        result_manifest = process_dataset(
+                            cfg,
+                            force=force_reprocess,
+                            progress_callback=_update_preprocessing_progress,
+                        )
+                        status.update(
+                            label="Tiền xử lý dataset hoàn tất",
+                            state="complete",
+                            expanded=False,
+                        )
+                    get_tfidf_index.clear()
+                    st.success(
+                        f"Đã lưu {result_manifest['output_articles']:,} article vào "
+                        f"`{Path(result_manifest['artifact_path']).name}`."
+                    )
+                    st.rerun()
+                except Exception as error:
+                    progress.empty()
+                    st.error(f"Tiền xử lý dataset thất bại: {error}")
+
+    # -- Tab 3: compare segmentation methods side by side
+    if tab_compare.open:
+        with tab_compare:
+            st.caption(
+                "Cùng một văn bản, so sánh `none` / `underthesea` / `pyvi` (RQ1)"
+            )
+            docs, chunks, _, _ = get_corpus()
+            sample_text = st.text_area(
+                "Văn bản so sánh", value=chunks[1].text[:400], height=150
+            )
+            if st.button("So sánh", type="primary"):
+                cols = st.columns(3)
+                for col, method in zip(cols, ["none", "underthesea", "pyvi"]):
+                    with col:
+                        st.markdown(f"**`{method}`**")
+                        try:
+                            out = segment_words(sample_text, method)
+                            st.code(out, language=None)
+                            st.caption(f"{len(out.split())} token")
+                        except Exception as e:  # tool may not be installed yet
+                            st.error(f"Lỗi: {e}")
 
 # ---------------------------------------------------------------------------
 # Screen 4.4 — Chunking Lab
@@ -575,14 +1118,154 @@ elif page.startswith("4.3"):
 if page.startswith("4.4"):
     st.header("Chunking Lab")
     st.sidebar.subheader("Cấu hình chunking")
+    _, _, chunking_dataset_version, _ = get_corpus()
+    preprocessing_manifests = [
+        manifest
+        for manifest in list_manifests()
+        if manifest.get("dataset_version") == chunking_dataset_version
+    ]
+    manifests_by_id = {
+        manifest["config_id"]: manifest for manifest in preprocessing_manifests
+    }
+    preprocessing_source_options = list(manifests_by_id) + ["raw"]
+    preprocessing_source = st.sidebar.selectbox(
+        "Nguồn đầu vào",
+        preprocessing_source_options,
+        format_func=lambda source: (
+            "Raw corpus — Chỉ dùng khi chưa có artifact"
+            if source == "raw"
+            else (
+                f"Processed — Khuyến nghị · "
+                f"{manifests_by_id[source]['preprocessing_config'].get('word_segmentation')} "
+                f"· {source}"
+            )
+        ),
+        help="Ưu tiên artifact đã tạo ở bước Tiền xử lý để bảo đảm tái lập.",
+    )
     strategy = st.sidebar.selectbox(
-        "Chiến lược", ["article", "fixed"], help="article = 1 điều luật / chunk"
+        "Chiến lược",
+        ["article", "fixed"],
+        format_func=lambda value: {
+            "article": "Article — Khuyến nghị cho văn bản pháp luật",
+            "fixed": "Fixed size — Dùng để thực nghiệm chunk size",
+        }[value],
+        help="Article giữ nguyên ranh giới điều luật; fixed phù hợp nghiên cứu RQ về chunking.",
     )
     chunk_size = st.sidebar.number_input("chunk_size (token)", 64, 1024, 256, 64)
     chunk_overlap = st.sidebar.number_input("chunk_overlap (token)", 0, chunk_size // 2, 0)
 
-    cfg, built, stats = get_built_chunks(strategy, chunk_size, chunk_overlap)
+    cfg, built, stats = get_built_chunks(
+        strategy,
+        chunk_size,
+        chunk_overlap,
+        None if preprocessing_source == "raw" else preprocessing_source,
+    )
     st.sidebar.caption(f"chunking config_id: `{cfg.config_id()}`")
+
+    if preprocessing_source == "raw":
+        st.warning(
+            "Chunking đang đọc raw corpus. Hãy tạo và chọn preprocessing artifact "
+            "nếu cần một pipeline có thể tái lập.",
+            icon=":material/warning:",
+        )
+    else:
+        st.success(
+            f"Đầu vào: preprocessing artifact `{preprocessing_source}`.",
+            icon=":material/check_circle:",
+        )
+
+    source_id = preprocessing_source
+    saved_chunk_manifest = load_chunk_manifest(source_id, cfg)
+    current_chunk_artifact = chunk_artifact_is_current(
+        source_id, cfg, chunking_dataset_version
+    )
+    chunk_data_path, chunk_manifest_path = chunk_artifact_paths(source_id, cfg)
+
+    with st.container(border=True):
+        st.subheader("Generate & Save Chunks")
+        st.caption(
+            "Materialize toàn bộ kết quả chunking để Indexing sử dụng trực tiếp. "
+            "Raw corpus và preprocessing artifact không bị thay đổi."
+        )
+        if current_chunk_artifact and saved_chunk_manifest:
+            st.success(
+                f"Artifact `{chunk_data_path.name}` đã sẵn sàng.",
+                icon=":material/check_circle:",
+            )
+            with st.container(horizontal=True):
+                st.metric(
+                    "Input articles",
+                    f"{saved_chunk_manifest['input_articles']:,}",
+                )
+                st.metric(
+                    "Output chunks",
+                    f"{saved_chunk_manifest['output_chunks']:,}",
+                )
+                st.metric("Average size", saved_chunk_manifest["length_mean"])
+                st.metric(
+                    "Min / Max",
+                    f"{saved_chunk_manifest['length_min']} / "
+                    f"{saved_chunk_manifest['length_max']}",
+                )
+            st.download_button(
+                "Tải chunking manifest",
+                data=json.dumps(saved_chunk_manifest, ensure_ascii=False, indent=2),
+                file_name=chunk_manifest_path.name,
+                mime="application/json",
+                icon=":material/download:",
+            )
+        else:
+            st.info(
+                "Chưa có chunk artifact phù hợp với dataset, nguồn đầu vào và "
+                "cấu hình hiện tại.",
+                icon=":material/info:",
+            )
+
+        force_chunking = st.checkbox(
+            "Force regenerate (ghi đè artifact cùng cấu hình)",
+            value=False,
+            help="Chỉ bật khi cần tạo lại artifact dù đầu vào và cấu hình không đổi.",
+        )
+        save_chunks = st.button(
+            "Generate & Save Chunks",
+            icon=":material/save:",
+            type="primary",
+            disabled=current_chunk_artifact and not force_chunking,
+        )
+        if save_chunks:
+            chunk_progress = st.progress(0.0, text="Đang chuẩn bị chunks...")
+
+            def _update_chunk_progress(done: int, total: int) -> None:
+                ratio = done / max(total, 1)
+                chunk_progress.progress(
+                    ratio,
+                    text=f"Đang lưu chunk {done:,}/{total:,} ({ratio:.0%})",
+                )
+
+            try:
+                with st.status("Đang tạo chunk artifact...", expanded=True) as status:
+                    st.write(f"Source: `{source_id}`")
+                    st.write(f"Chunking config: `{cfg.config_id()}`")
+                    result_manifest = generate_and_save_chunks(
+                        source_id,
+                        cfg,
+                        force=force_chunking,
+                        progress_callback=_update_chunk_progress,
+                    )
+                    status.update(
+                        label="Chunk artifact đã được tạo",
+                        state="complete",
+                        expanded=False,
+                    )
+                get_tfidf_index.clear()
+                st.success(
+                    f"Đã lưu {result_manifest['output_chunks']:,} chunks vào "
+                    f"`{Path(result_manifest['artifact_path']).name}`."
+                )
+                st.rerun()
+            except Exception as error:
+                chunk_progress.empty()
+                st.error(f"Không thể tạo chunk artifact: {error}")
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Số chunk", f"{stats.n_chunks:,}")
@@ -609,12 +1292,62 @@ if page.startswith("4.4"):
 elif page.startswith("4.5"):
     st.header("Lập chỉ mục và embedding")
 
+    _, _, index_dataset_version, _ = get_corpus()
+    available_chunk_manifests = [
+        manifest
+        for manifest in list_chunk_manifests()
+        if manifest.get("dataset_version") == index_dataset_version
+    ]
+    chunk_manifests_by_id = {
+        manifest["artifact_id"]: manifest for manifest in available_chunk_manifests
+    }
+    selected_chunk_artifact = st.selectbox(
+        "Chunk artifact",
+        list(chunk_manifests_by_id),
+        index=0 if chunk_manifests_by_id else None,
+        placeholder="Hãy Generate & Save Chunks ở bước Chunking",
+        format_func=lambda artifact_id: (
+            f"{artifact_id} — "
+            f"{chunk_manifests_by_id[artifact_id]['output_chunks']:,} chunks"
+        ),
+        help="Indexing chỉ sử dụng chunk artifact đã materialize để bảo đảm tái lập.",
+    )
+    selected_chunk_manifest = (
+        chunk_manifests_by_id.get(selected_chunk_artifact)
+        if selected_chunk_artifact
+        else None
+    )
+    seg = (
+        selected_chunk_manifest.get("preprocessing_config", {}).get(
+            "word_segmentation", "none"
+        )
+        if selected_chunk_manifest
+        else "none"
+    )
+    if selected_chunk_manifest:
+        st.success(
+            f"Indexing sẽ đọc trực tiếp `{selected_chunk_artifact}` · "
+            f"preprocessing `{selected_chunk_manifest['source_id']}` · "
+            f"chunking `{selected_chunk_manifest['chunking_config_id']}`.",
+            icon=":material/recycling:",
+        )
+    else:
+        st.warning(
+            "Chưa có chunk artifact cho dataset hiện tại. Quay lại bước Chunking "
+            "và chọn Generate & Save Chunks.",
+            icon=":material/warning:",
+        )
+
     st.subheader("1) Baseline: TF-IDF")
-    seg = st.selectbox("Tách từ (RQ1)", ["none", "underthesea", "pyvi"], key="tfidf_seg")
-    if st.button("Xây TF-IDF index", key="btn_tfidf"):
+    st.caption(f"Word segmentation kế thừa từ artifact: `{seg}`.")
+    if st.button(
+        "Xây TF-IDF index",
+        key="btn_tfidf",
+        disabled=not selected_chunk_artifact,
+    ):
         with st.spinner("Đang xây TF-IDF..."):
             try:
-                retriever, elapsed = get_tfidf_index(seg)
+                retriever, elapsed = get_tfidf_index(seg, selected_chunk_artifact)
                 st.success(
                     f"TF-IDF xong: {retriever.matrix.shape[0]:,} chunk × "
                     f"{retriever.matrix.shape[1]:,} term trong {elapsed}s "
@@ -626,26 +1359,44 @@ elif page.startswith("4.5"):
     st.divider()
     st.subheader("2) Dense: Sentence-BERT + ChromaDB")
     model_name = st.text_input("Model", value=DEFAULT_MODEL)
-    device = st.selectbox("Device", ["auto", "cpu", "cuda"])
+    device = st.selectbox(
+        "Device",
+        ["auto", "cpu", "cuda"],
+        format_func=lambda value: {
+            "auto": "Auto — Khuyến nghị",
+            "cpu": "CPU — Tương thích cao, chậm hơn",
+            "cuda": "CUDA — Ưu tiên khi GPU khả dụng",
+        }[value],
+    )
     batch_size = st.number_input("Batch size", 16, 256, 64, 16)
 
-    if st.button("Xây dense index", key="btn_dense", type="primary"):
+    if st.button(
+        "Xây dense index",
+        key="btn_dense",
+        type="primary",
+        disabled=not selected_chunk_artifact,
+    ):
         try:
-            from src.preprocessing.pipeline import run_pipeline as _rp
-
-            _, chunks, _, _ = get_corpus()
-            pcfg = PreprocessingConfig(word_segmentation=seg)
+            assert selected_chunk_manifest is not None
             dr = DenseRetriever(model_name=model_name,
                                 device=None if device == "auto" else device)
             col_name = dr.collection_name(
-                PreprocessingConfig(word_segmentation=seg).config_id(),
-                ChunkingConfig(strategy="article").config_id(),
+                selected_chunk_manifest["source_id"],
+                selected_chunk_manifest["chunking_config_id"],
             )
             progress = st.progress(0.0, text="Đang embed corpus...")
-            texts = [_rp(c.text, pcfg).text for c in chunks]
-            metas = [{"law_id": c.law_id, "article_id": c.article_id} for c in chunks]
+            chunk_records = load_chunk_records(selected_chunk_artifact)
+            chunk_ids = [record["chunk_id"] for record in chunk_records]
+            texts = [record["text"] for record in chunk_records]
+            metas = [
+                {
+                    "law_id": record["law_id"],
+                    "article_id": record["article_id"],
+                }
+                for record in chunk_records
+            ]
             info = dr.build_index(
-                [c.chunk_id for c in chunks], texts, metas, col_name,
+                chunk_ids, texts, metas, col_name,
                 batch_size=int(batch_size),
                 progress_callback=lambda p: progress.progress(
                     p, text=f"Đang embed corpus... {p:.0%}"
@@ -679,8 +1430,22 @@ elif page.startswith("4.6"):
     query = st.text_input(
         "Câu hỏi", value="Thời hiệu khởi kiện khiếu quyết định hành chính là bao lâu?"
     )
-    top_k = st.selectbox("top_k", TOP_K_CHOICES, index=TOP_K_CHOICES.index(5))
-    seg = st.selectbox("Tách từ", ["none", "underthesea", "pyvi"], key="playground_seg")
+    top_k = st.selectbox(
+        "top_k",
+        TOP_K_CHOICES,
+        index=TOP_K_CHOICES.index(5),
+        format_func=lambda value: f"{value} — Khuyến nghị cân bằng" if value == 5 else str(value),
+    )
+    seg = st.selectbox(
+        "Tách từ",
+        ["none", "underthesea", "pyvi"],
+        key="playground_seg",
+        format_func=lambda value: {
+            "none": "None — Khuyến nghị mặc định",
+            "underthesea": "Underthesea — Dùng với index tương ứng",
+            "pyvi": "PyVi — Dùng với index tương ứng",
+        }[value],
+    )
 
     from src.preprocessing.pipeline import run_pipeline as _rp
 
@@ -739,7 +1504,9 @@ elif page.startswith("4.6"):
 # Screen 4.7 — Chat with LLM (grounded RAG)
 # ---------------------------------------------------------------------------
 elif page.startswith("4.7"):
-    st.header("Chat với LLM (RAG)")
+    if is_admin:
+        st.header("Chat Playground")
+        st.caption("Kiểm thử toàn bộ luồng Query → Retrieval → Context → LLM → Answer.")
 
     # -- LLM availability
     models: list[str] = []
@@ -754,26 +1521,52 @@ elif page.startswith("4.7"):
         if not models:
             st.warning("Ollama đang chạy nhưng chưa có model nào. Chạy: `ollama pull qwen2.5:7b`")
 
-    # -- Retrieval settings
-    st.sidebar.subheader("Retriever")
-    retriever_kind = st.sidebar.selectbox(
-        "Retriever", ["dense (SBERT)", "tfidf (baseline)"]
-    )
-    top_k_rag = st.sidebar.select_slider(
-        "Số điều luật đưa vào prompt (top_k)", options=[1, 3, 5, 10], value=5
-    )
-    seg_rag = st.sidebar.selectbox("Tách từ", ["none", "underthesea", "pyvi"], key="rag_seg")
-
-    st.sidebar.subheader("LLM")
+    # -- Retrieval settings: hidden from end users by design
     model_options = models if models else ["qwen2.5:7b"]
     default_idx = (
         model_options.index("qwen2.5:7b")
         if "qwen2.5:7b" in model_options
         else 0
     )
-    llm_model = st.sidebar.selectbox("Model Ollama", model_options, index=default_idx)
-    temperature = st.sidebar.slider("Temperature", 0.0, 1.0, 0.2, 0.05)
-    max_tokens = st.sidebar.slider("Max tokens trả lời", 128, 2048, 512, 128)
+    if is_admin:
+        st.sidebar.subheader("Retriever")
+        retriever_kind = st.sidebar.selectbox(
+            "Retriever",
+            ["dense (SBERT)", "tfidf (baseline)"],
+            format_func=lambda value: (
+                "Dense (SBERT) — Khuyến nghị cho semantic search"
+                if value.startswith("dense")
+                else "TF-IDF — Baseline bắt buộc"
+            ),
+        )
+        top_k_rag = st.sidebar.select_slider(
+            "Số điều luật đưa vào prompt (top_k)",
+            options=[1, 3, 5, 10],
+            value=5,
+        )
+        seg_rag = st.sidebar.selectbox(
+            "Tách từ",
+            ["none", "underthesea", "pyvi"],
+            key="rag_seg",
+            format_func=lambda value: {
+                "none": "None — Khuyến nghị với dense",
+                "underthesea": "Underthesea — Chọn khi index dùng Underthesea",
+                "pyvi": "PyVi — Chọn khi index dùng PyVi",
+            }[value],
+        )
+        st.sidebar.subheader("LLM")
+        llm_model = st.sidebar.selectbox(
+            "Model Ollama", model_options, index=default_idx
+        )
+        temperature = st.sidebar.slider("Temperature", 0.0, 1.0, 0.2, 0.05)
+        max_tokens = st.sidebar.slider("Max tokens trả lời", 128, 2048, 512, 128)
+    else:
+        retriever_kind = "tfidf (baseline)"
+        top_k_rag = 5
+        seg_rag = "none"
+        llm_model = model_options[default_idx]
+        temperature = 0.2
+        max_tokens = 512
 
     from src.preprocessing.pipeline import run_pipeline as _rp
 
@@ -782,6 +1575,28 @@ elif page.startswith("4.7"):
     # -- Chat loop (history kept in session state)
     if "rag_chat" not in st.session_state:
         st.session_state.rag_chat = []
+    st.session_state.setdefault("rag_feedback", [])
+
+    def _new_chat() -> None:
+        st.session_state.rag_chat = []
+
+    st.sidebar.button(
+        "Hội thoại mới",
+        icon=":material/add_comment:",
+        on_click=_new_chat,
+        width="stretch",
+    )
+    if st.session_state.rag_chat:
+        first_question = next(
+            (
+                item["content"]
+                for item in st.session_state.rag_chat
+                if item["role"] == "user"
+            ),
+            "Hội thoại hiện tại",
+        )
+        st.sidebar.caption("**Hôm nay**")
+        st.sidebar.caption(first_question[:48])
 
     def _retrieve(question: str):
         """Retrieve top-k chunks with the selected retriever."""
@@ -801,7 +1616,7 @@ elif page.startswith("4.7"):
         retriever, _ = get_tfidf_index(seg_rag)
         return retriever.search(q, top_k=int(top_k_rag))
 
-    for msg in st.session_state.rag_chat:
+    for message_index, msg in enumerate(st.session_state.rag_chat):
         if msg["role"] == "user":
             render_user_message(msg["content"], msg.get("sent_at"))
         else:
@@ -811,8 +1626,63 @@ elif page.startswith("4.7"):
                 if msg.get("citations"):
                     with st.expander(":material/source: Nguồn tham chiếu", expanded=False):
                         st.caption(", ".join(f"`{c}`" for c in msg["citations"]))
+                rating = st.feedback("thumbs", key=f"answer_feedback_{message_index}")
+                if rating == 0:
+                    reasons = st.multiselect(
+                        "Câu trả lời có vấn đề gì?",
+                        [
+                            "Không chính xác",
+                            "Không liên quan",
+                            "Thiếu thông tin",
+                            "Nguồn không phù hợp",
+                            "Khác",
+                        ],
+                        key=f"feedback_reasons_{message_index}",
+                    )
+                    if st.button(
+                        "Gửi phản hồi",
+                        key=f"save_feedback_{message_index}",
+                        disabled=not reasons,
+                    ):
+                        st.session_state.rag_feedback.append(
+                            {"message_index": message_index, "reasons": reasons}
+                        )
+                        st.toast("Đã ghi nhận phản hồi", icon=":material/check:")
 
-    question = st.chat_input("Đặt câu hỏi pháp luật (ví dụ: Thời hiệu khiếu kiện là bao lâu?)")
+    if not st.session_state.rag_chat:
+        with st.container(horizontal_alignment="center"):
+            st.title("Bạn muốn hỏi điều gì?")
+            st.caption(
+                "Tôi sẽ tìm kiếm trong kho tài liệu và tạo câu trả lời dựa trên "
+                "các nguồn phù hợp nhất."
+            )
+
+        suggestions = [
+            "Thời hiệu khởi kiện quyết định hành chính là bao lâu?",
+            "Điều kiện để khiếu nại quyết định hành chính là gì?",
+            "Hồ sơ khởi kiện cần những tài liệu nào?",
+            "Phân biệt khiếu nại và khởi kiện hành chính.",
+        ]
+
+        def _queue_suggestion(suggestion: str) -> None:
+            st.session_state["_pending_question"] = suggestion
+
+        suggestion_cols = st.columns(4)
+        for suggestion_col, suggestion in zip(suggestion_cols, suggestions):
+            suggestion_col.button(
+                suggestion,
+                key=f"suggestion_{suggestions.index(suggestion)}",
+                on_click=_queue_suggestion,
+                args=(suggestion,),
+                width="stretch",
+            )
+
+    pending_question = st.session_state.pop("_pending_question", None)
+    typed_question = st.chat_input(
+        "Nhập câu hỏi...",
+        submit_mode="stop",
+    )
+    question = pending_question or typed_question
     if question:
         user_sent_at = current_message_time()
         st.session_state.rag_chat.append(
@@ -908,9 +1778,24 @@ elif page.startswith("4.7"):
             )
         st.session_state.rag_chat.append(reply)
 
-        if st.sidebar.button(":material/delete: Xoá lịch sử chat"):
-            st.session_state.rag_chat = []
-            st.rerun()
+
+# ---------------------------------------------------------------------------
+# Public legal information portal
+# ---------------------------------------------------------------------------
+elif page.startswith("5.1"):
+    portal_docs, portal_chunks, portal_version, _ = get_corpus()
+    portal_questions = get_questions()
+    open_assistant = render_legal_portal(
+        portal_docs,
+        portal_chunks,
+        portal_questions,
+        portal_version,
+        on_admin=_set_admin_role,
+        on_question=_queue_legal_question,
+    )
+    if open_assistant:
+        render_legal_assistant()
+
 
 # ---------------------------------------------------------------------------
 # Screen 4.8 — Retrieval Evaluation (Week 4: RQ1, RQ2)
@@ -925,10 +1810,40 @@ elif page.startswith("4.8"):
     )
 
     st.sidebar.subheader("Cấu hình đánh giá")
-    rq = st.sidebar.selectbox("Câu hỏi nghiên cứu", ["RQ1 (tách từ)", "RQ2 (tfidf vs dense)"])
-    retriever_eval = st.sidebar.selectbox("Retriever (RQ1)", ["tfidf", "dense"])
-    seg_eval = st.sidebar.selectbox("Tách từ (RQ2)", ["none", "underthesea", "pyvi"])
-    split_eval = st.sidebar.selectbox("Split dữ liệu", ["dev", "test", "train"])
+    rq = st.sidebar.selectbox(
+        "Câu hỏi nghiên cứu",
+        ["RQ1 (tách từ)", "RQ2 (tfidf vs dense)"],
+        format_func=lambda value: (
+            f"{value} — Ưu tiên chạy trước" if value.startswith("RQ1") else value
+        ),
+    )
+    retriever_eval = st.sidebar.selectbox(
+        "Retriever (RQ1)",
+        ["tfidf", "dense"],
+        format_func=lambda value: (
+            "TF-IDF — Khuyến nghị để cô lập ảnh hưởng tách từ"
+            if value == "tfidf"
+            else "Dense — Thực nghiệm bổ sung"
+        ),
+    )
+    seg_eval = st.sidebar.selectbox(
+        "Tách từ (RQ2)",
+        ["none", "underthesea", "pyvi"],
+        format_func=lambda value: {
+            "none": "None — Khuyến nghị để so sánh retriever công bằng",
+            "underthesea": "Underthesea — Cấu hình bổ sung",
+            "pyvi": "PyVi — Cấu hình bổ sung",
+        }[value],
+    )
+    split_eval = st.sidebar.selectbox(
+        "Split dữ liệu",
+        ["dev", "test", "train"],
+        format_func=lambda value: {
+            "dev": "Dev — Khuyến nghị khi phát triển",
+            "test": "Test — Chỉ dùng cho đánh giá cuối cùng",
+            "train": "Train — Chẩn đoán, không báo cáo kết quả cuối",
+        }[value],
+    )
     max_q = st.sidebar.number_input(
         "Số câu hỏi tối đa (0 = tất cả)", 0, 3000, 100, 50,
         help="Giảm để chạy nhanh khi thử nghiệm; 0 = toàn bộ split"
@@ -985,7 +1900,7 @@ elif page.startswith("4.8"):
                         "giây": res["elapsed_seconds"],
                     }
                 )
-            st.dataframe(pd.DataFrame(rows), use_container_width=True)
+            st.dataframe(pd.DataFrame(rows), width="stretch")
             st.caption(
                 "Hit@K = tỉ lệ câu hỏi có ≥1 điều luật đúng trong top-K "
                 "(thước đo chính của Zalo AI 2021); MRR = trung bình nghịch đảo hạng."
@@ -1003,4 +1918,163 @@ elif page.startswith("4.8"):
                     st.json(
                         {k: v for k, v in res.items() if not k.startswith("_")}
                     )
+
+# ---------------------------------------------------------------------------
+# Screen 4.9 — Model connections
+# ---------------------------------------------------------------------------
+elif page.startswith("4.9"):
+    st.header("Models")
+    st.caption("Quản lý kết nối LLM và cấu hình embedding dùng trong RAG.")
+
+    llm_tab, embedding_tab, reranker_tab = st.tabs(
+        ["LLM", "Embedding", "Reranker"], on_change="rerun"
+    )
+    if llm_tab.open:
+        with llm_tab:
+            with st.container(border=True):
+                st.subheader("Ollama")
+                st.text_input(
+                    "Base URL",
+                    value="http://localhost:11434",
+                    disabled=True,
+                )
+                available_models = list_ollama_models() if ollama_available() else []
+                st.selectbox(
+                    "Model",
+                    available_models or ["qwen2.5:7b"],
+                    key="models_llm_model",
+                )
+                if st.button(
+                    "Kiểm tra kết nối",
+                    icon=":material/cable:",
+                    type="primary",
+                ):
+                    if ollama_available():
+                        st.success("Kết nối Ollama thành công.")
+                    else:
+                        st.error("Không thể kết nối Ollama tại cổng 11434.")
+    if embedding_tab.open:
+        with embedding_tab:
+            with st.container(border=True):
+                st.subheader("Embedding model")
+                st.text_input("Model", value=DEFAULT_MODEL, key="models_embedding")
+                st.segmented_control(
+                    "Device", ["Auto", "CPU", "CUDA"], default="Auto"
+                )
+                st.number_input("Batch size", 16, 256, 64, 16)
+                st.caption(
+                    "Việc kiểm tra embedding được thực hiện khi xây dense index để "
+                    "tránh nạp model lớn chỉ cho thao tác xem cấu hình."
+                )
+    if reranker_tab.open:
+        with reranker_tab:
+            with st.container(border=True):
+                enabled = st.toggle("Bật reranker", value=False)
+                st.text_input("Reranker model", disabled=not enabled)
+                st.number_input("Top candidates", 5, 100, 20, disabled=not enabled)
+                st.number_input("Final top-k", 1, 20, 5, disabled=not enabled)
+                st.info(
+                    "Backend hiện chưa triển khai reranker; cấu hình này chưa được "
+                    "đưa vào thực nghiệm.",
+                    icon=":material/info:",
+                )
+
+# ---------------------------------------------------------------------------
+# Screen 4.10 — Settings
+# ---------------------------------------------------------------------------
+elif page.startswith("4.10"):
+    st.header("Settings")
+    st.caption("Thiết lập mặc định ở phạm vi phiên làm việc hiện tại.")
+    st.session_state.setdefault(
+        "app_settings",
+        {
+            "system_name": "RAG Management & QA Platform",
+            "language": "Tiếng Việt",
+            "chunk_size": 256,
+            "chunk_overlap": 0,
+            "top_k": 5,
+        },
+    )
+    saved_settings = st.session_state.app_settings
+    with st.form("general_settings"):
+        st.subheader("General")
+        system_name = st.text_input("Tên hệ thống", saved_settings["system_name"])
+        language = st.selectbox(
+            "Ngôn ngữ",
+            ["Tiếng Việt", "English"],
+            index=0 if saved_settings["language"] == "Tiếng Việt" else 1,
+        )
+        st.subheader("RAG defaults")
+        chunk_size_default = st.number_input(
+            "Chunk size", 64, 2048, saved_settings["chunk_size"], 64
+        )
+        chunk_overlap_default = st.number_input(
+            "Chunk overlap", 0, 1024, saved_settings["chunk_overlap"], 16
+        )
+        top_k_default = st.selectbox(
+            "Top-k",
+            TOP_K_CHOICES,
+            index=TOP_K_CHOICES.index(saved_settings["top_k"]),
+        )
+        save_settings = st.form_submit_button(
+            "Lưu thiết lập", icon=":material/save:", type="primary"
+        )
+    if save_settings:
+        if chunk_overlap_default >= chunk_size_default:
+            st.error("Chunk overlap phải nhỏ hơn chunk size.")
+        elif not system_name.strip():
+            st.error("Tên hệ thống không được để trống.")
+        else:
+            st.session_state.app_settings = {
+                "system_name": system_name.strip(),
+                "language": language,
+                "chunk_size": int(chunk_size_default),
+                "chunk_overlap": int(chunk_overlap_default),
+                "top_k": int(top_k_default),
+            }
+            st.toast("Đã lưu thiết lập cho phiên hiện tại", icon=":material/check:")
+
+# ---------------------------------------------------------------------------
+# Screen 4.11 — Observable system state
+# ---------------------------------------------------------------------------
+elif page.startswith("4.11"):
+    st.header("System logs")
+    st.caption("Các sự kiện có thể xác minh trong phiên hiện tại và artifact thực nghiệm.")
+    metric_files = sorted((PROJECT_ROOT / "results" / "metrics").glob("*.json"))
+    log_rows = [
+        {
+            "Time": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"),
+            "Level": "INFO" if dataset_ready() else "ERROR",
+            "Module": "Data",
+            "Message": "Dataset sẵn sàng" if dataset_ready() else "Thiếu dataset",
+        },
+        {
+            "Time": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"),
+            "Level": "INFO" if ollama_available() else "WARN",
+            "Module": "LLM",
+            "Message": "Ollama đã kết nối" if ollama_available() else "Ollama chưa kết nối",
+        },
+        {
+            "Time": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"),
+            "Level": "INFO",
+            "Module": "Evaluation",
+            "Message": f"Tìm thấy {len(metric_files)} artifact kết quả",
+        },
+    ]
+    level_filter = st.pills(
+        "Level",
+        ["INFO", "WARN", "ERROR"],
+        default=["INFO", "WARN", "ERROR"],
+        selection_mode="multi",
+    )
+    module_filter = st.multiselect(
+        "Module",
+        ["Data", "LLM", "Evaluation"],
+        default=["Data", "LLM", "Evaluation"],
+    )
+    logs_df = pd.DataFrame(log_rows)
+    filtered_logs = logs_df[
+        logs_df["Level"].isin(level_filter) & logs_df["Module"].isin(module_filter)
+    ]
+    st.dataframe(filtered_logs, hide_index=True, width="stretch")
 
