@@ -1,13 +1,14 @@
 # Secrets and environment
 .env
 
-# Data (large files not committed)
+# Data (large/generated files are kept locally, not committed)
 data/raw/*
 data/interim/*
 data/processed/*
 !data/raw/.gitkeep
 !data/interim/.gitkeep
 !data/processed/.gitkeep
+
 
 # ChromaDB local storage
 chroma_store/
