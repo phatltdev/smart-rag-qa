@@ -1,0 +1,11 @@
+{
+  "retriever": "dense",
+  "top_k": 5,
+  "word_segmentation": "none",
+  "llm_provider": "ollama",
+  "llm_model": "qwen2.5:7b",
+  "temperature": 0.2,
+  "max_tokens": 512,
+  "updated_at": "2026-08-30T21:54:44+07:00",
+  "updated_by": "Quản trị viên"
+}

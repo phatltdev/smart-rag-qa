@@ -1,6 +1,6 @@
 {
   "experiment_id": "retrieval_tfidf_seg-none_dev",
-  "date": "2026-08-29T15:19:17",
+  "date": "2026-08-30T20:11:54",
   "research_question": "RQ1",
   "dataset_version": "zalo2021-0148b8f1cc",
   "split": "dev",
@@ -26,7 +26,7 @@
     ]
   },
   "random_seed": 42,
-  "elapsed_seconds": 74.0,
+  "elapsed_seconds": 108.1,
   "metrics": {
     "n_questions": 100,
     "hit@k": {

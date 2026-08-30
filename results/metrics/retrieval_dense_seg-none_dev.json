@@ -1,0 +1,50 @@
+{
+  "experiment_id": "retrieval_dense_seg-none_dev",
+  "date": "2026-08-30T20:44:20",
+  "research_question": "RQ2",
+  "dataset_version": "zalo2021-0148b8f1cc",
+  "split": "dev",
+  "n_questions": 100,
+  "preprocessing": {
+    "unicode_normalization": "NFC",
+    "whitespace_normalization": true,
+    "remove_noise_chars": true,
+    "lowercase": false,
+    "word_segmentation": "none",
+    "remove_stopwords": false
+  },
+  "chunking": {
+    "strategy": "article",
+    "chunk_size": 256,
+    "chunk_overlap": 0
+  },
+  "index": {
+    "type": "dense",
+    "model": "keepitreal/vietnamese-sbert",
+    "collection": "dense_keepitreal__vietnamese-sbert_p9f6a8d3fa9_c3c8e29d22f"
+  },
+  "random_seed": 42,
+  "elapsed_seconds": 176.3,
+  "metrics": {
+    "n_questions": 100,
+    "hit@k": {
+      "1": 0.23,
+      "3": 0.32,
+      "5": 0.39,
+      "10": 0.46
+    },
+    "precision@k": {
+      "1": 0.23,
+      "3": 0.10666666666666666,
+      "5": 0.07800000000000001,
+      "10": 0.046000000000000006
+    },
+    "recall@k": {
+      "1": 0.23,
+      "3": 0.32,
+      "5": 0.39,
+      "10": 0.455
+    },
+    "mrr": 0.2966388888888889
+  }
+}

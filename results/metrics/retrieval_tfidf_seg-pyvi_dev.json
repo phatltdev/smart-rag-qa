@@ -1,8 +1,8 @@
 {
   "experiment_id": "retrieval_tfidf_seg-pyvi_dev",
-  "date": "2026-08-25T11:02:46",
+  "date": "2026-08-30T20:39:13",
   "research_question": "RQ1",
-  "dataset_version": "zalo2021-fae7d632ad",
+  "dataset_version": "zalo2021-0148b8f1cc",
   "split": "dev",
   "n_questions": 100,
   "preprocessing": {
@@ -26,7 +26,7 @@
     ]
   },
   "random_seed": 42,
-  "elapsed_seconds": 272.5,
+  "elapsed_seconds": 413.3,
   "metrics": {
     "n_questions": 100,
     "hit@k": {

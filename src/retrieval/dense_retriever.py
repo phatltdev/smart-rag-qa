@@ -10,6 +10,10 @@ from src.retrieval.tfidf_retriever import RetrievalResult
 DEFAULT_MODEL = "keepitreal/vietnamese-sbert"
 CHROMA_DIR = PROJECT_ROOT / "chroma_store"
 
+# Loaded SentenceTransformer instances shared across retriever objects:
+# chat creates a retriever per query and must not reload the model each time.
+_MODEL_CACHE: dict[str, object] = {}
+
 
 @dataclass
 class DenseIndexInfo:
@@ -35,7 +39,11 @@ class DenseRetriever:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self.model_name, device=self._device)
+            if self.model_name not in _MODEL_CACHE:
+                _MODEL_CACHE[self.model_name] = SentenceTransformer(
+                    self.model_name, device=self._device
+                )
+            self._model = _MODEL_CACHE[self.model_name]
         return self._model
 
     @property

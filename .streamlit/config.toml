@@ -1,20 +1,20 @@
 [theme]
-base = "dark"
+base = "light"
 primaryColor = "#EF4444"
-backgroundColor = "#0D1117"
-secondaryBackgroundColor = "#161B22"
-textColor = "#F0F6FC"
-borderColor = "#30363D"
+backgroundColor = "#F8FAFC"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0F172A"
+borderColor = "#E2E8F0"
 baseRadius = "medium"
 buttonRadius = "medium"
 font = "sans-serif"
 codeFont = "monospace"
 
 [theme.sidebar]
-backgroundColor = "#0D1117"
-secondaryBackgroundColor = "#161B22"
-textColor = "#F0F6FC"
-borderColor = "#30363D"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F5F9"
+textColor = "#334155"
+borderColor = "#E2E8F0"
 
 [client]
 # Hide the built-in developer toolbar (Deploy button + main menu) so the
