@@ -1,0 +1,35 @@
+{
+  "status": "completed",
+  "reused": false,
+  "dataset": "Zalo AI 2021 — Legal Text Retrieval",
+  "dataset_version": "zalo2021-0148b8f1cc",
+  "source_file": "D:\\htttk32\\smart-rag-qa\\data\\raw\\legal_corpus.json",
+  "config_id": "9f6a8d3fa9",
+  "preprocessing_config": {
+    "unicode_normalization": "NFC",
+    "whitespace_normalization": true,
+    "remove_noise_chars": true,
+    "lowercase": false,
+    "word_segmentation": "none",
+    "remove_stopwords": false
+  },
+  "processed_at": "2026-08-29T16:14:55.781875+00:00",
+  "random_seed": 42,
+  "input_articles": 60152,
+  "output_articles": 60152,
+  "changed_articles": 1639,
+  "chars_before": 82271649,
+  "chars_after": 82268304,
+  "tokens_before": 18238215,
+  "tokens_after": 18238215,
+  "validation_report": {
+    "total_laws": 3271,
+    "valid_laws": 3271,
+    "total_articles": 61425,
+    "valid_articles": 60152,
+    "empty_articles": 357,
+    "duplicate_articles": 916,
+    "errors": []
+  },
+  "artifact_path": "D:\\htttk32\\smart-rag-qa\\data\\processed\\corpus_9f6a8d3fa9.jsonl"
+}
